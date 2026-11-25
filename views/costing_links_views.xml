@@ -1,0 +1,50 @@
+<odoo>
+    <record id="direct_vendor_project_form" model="ir.ui.view">
+        <field name="name">account.move.acme.vendor.project</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <field name="invoice_origin" position="after">
+                <field name="acme_vendor_project_id" invisible="move_type not in ['in_invoice', 'in_refund', 'in_receipt']"
+                       readonly="state != 'draft'" options="{'no_create': True}"/>
+                <field name="acme_vendor_source_project_ids" widget="many2many_tags"
+                       invisible="not acme_vendor_source_project_ids"/>
+            </field>
+        </field>
+    </record>
+    <record id="staff_advance_expense_form" model="ir.ui.view">
+        <field name="name">hr.expense.acme.advance.link</field>
+        <field name="model">hr.expense</field>
+        <field name="inherit_id" ref="hr_expense.hr_expense_view_form"/>
+        <field name="arch" type="xml">
+            <field name="analytic_distribution" position="after">
+                <field name="acme_staff_advance_id" readonly="not is_editable"
+                       domain="[('acme_kind', 'in', ['work_advance', 'petty_cash']), ('request_status', '=', 'approved'), ('company_id', '=', company_id)]"
+                       options="{'no_create': True}"/>
+            </field>
+        </field>
+    </record>
+    <record id="staff_advance_expense_request" model="ir.ui.view">
+        <field name="name">approval.request.acme.expense.link</field>
+        <field name="model">approval.request</field>
+        <field name="inherit_id" ref="approval_request_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_acme_advance_expenses" type="object" string="Open Linked Expenses"
+                        invisible="acme_kind not in ['work_advance', 'petty_cash'] or request_status != 'approved'"/>
+            </xpath>
+        </field>
+    </record>
+    <record id="company_project_costing_policy" model="ir.ui.view">
+        <field name="name">res.company.acme.costing.policy</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="company_handover_configuration"/>
+        <field name="arch" type="xml">
+            <field name="acme_advance_invoice_tax_id" position="after">
+                <field name="acme_earned_revenue_method" groups="account.group_account_manager"/>
+                <field name="acme_material_cost_basis" groups="account.group_account_manager"/>
+                <field name="acme_separate_workshop_time" groups="account.group_account_manager"/>
+            </field>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,313 @@
+<odoo>
+    <record id="project_request_buttons" model="ir.ui.view"><field name="name">project.approval.buttons</field><field name="model">project.project</field><field name="inherit_id" ref="acme_project_core.project_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside"><button name="action_acme_approvals" type="object" class="oe_stat_button" icon="fa-check-square-o"><field name="acme_approval_count" widget="statinfo" string="Requests"/></button></xpath>
+            <field name="acme_advance_received" position="replace">
+                <field name="acme_advance_paid"/>
+                <field name="acme_advance_received_flag" string="Advance Received"/>
+            </field>
+            <xpath expr="//page[@name='acme_contract']" position="inside">
+                <field name="acme_has_advance_request" invisible="1"/>
+                <field name="acme_has_bond_request" invisible="1"/>
+                <button name="action_acme_advance_request" type="object" string="Request Advance Payment"
+                        class="btn-primary" invisible="acme_has_advance_request"/>
+                <button name="action_acme_bond_request" type="object" string="Request Performance Bond"
+                        invisible="acme_has_bond_request"/>
+                <button name="action_acme_guarantee_request" type="object" string="Request Bank Guarantee"
+                        invisible="acme_has_bond_request"/>
+            </xpath>
+            <xpath expr="//page[@name='acme_contract']" position="after">
+                <page string="Handover" name="acme_handover_registration">
+                    <group>
+                        <group string="Registration">
+                            <field name="acme_lifecycle_state" invisible="1"/>
+                            <field name="acme_contract_currency_id" invisible="1"/>
+                            <field name="acme_project_sequence" readonly="1"/>
+                            <field name="acme_contract_amount" readonly="1"/>
+                            <field name="acme_handover_duration_days" readonly="1"/>
+                            <field name="milestone_ids" readonly="1"/>
+                            <field name="acme_contract_advance_amount" readonly="1"/>
+                        </group>
+                        <group string="PM Assignment">
+                            <field name="acme_pm_candidate_id" readonly="acme_lifecycle_state != 'verified'"
+                                   groups="acme_project_core.group_acme_odm"/>
+                            <field name="acme_pm_candidate_id" readonly="1" groups="!acme_project_core.group_acme_odm"/>
+                            <field name="acme_handover_task_id" readonly="1"/>
+                            <div colspan="2" invisible="acme_lifecycle_state != 'verified'"
+                                 groups="acme_project_core.group_acme_odm">
+                                <button name="action_acme_open_handover" type="object" string="Create / Open Handover"/>
+                                <button name="action_acme_submit_pm_assignment" type="object"
+                                        string="Confirm Registration and Submit PM Assignment"/>
+                            </div>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+            <xpath expr="//field[@name='acme_guarantee_ids']/form/sheet/group/field[@name='amount']" position="after">
+                <field name="approval_id" readonly="1"/>
+                <field name="acme_approved_addressee" invisible="not approval_id"/>
+                <field name="acme_approved_addressee_address" invisible="not approval_id"/>
+                <field name="acme_approved_beneficiary" invisible="not approval_id"/>
+                <field name="acme_approved_account_number" invisible="not approval_id"/>
+                <field name="acme_approved_branch" invisible="not approval_id"/>
+                <field name="acme_approved_city" invisible="not approval_id"/>
+            </xpath>
+            <xpath expr="//field[@name='acme_guarantee_ids']/form//field[@name='bank_id']" position="attributes">
+                <attribute name="readonly" add="approval_id" separator=" or "/>
+            </xpath>
+            <xpath expr="//field[@name='acme_guarantee_ids']/form//field[@name='guarantee_type']" position="attributes">
+                <attribute name="readonly" add="approval_id" separator=" or "/>
+            </xpath>
+            <xpath expr="//field[@name='acme_guarantee_ids']/form//field[@name='amount']" position="attributes">
+                <attribute name="readonly" add="approval_id" separator=" or "/>
+            </xpath>
+        </field>
+    </record>
+    <record id="invoice_approval_link" model="ir.ui.view">
+        <field name="name">account.move.acme.project.invoice</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_acme_load_invoice_source" type="object" string="Load / Open Project Source"
+                        invisible="move_type != 'out_invoice' or state != 'draft' or not acme_is_project or not acme_invoice_payment_type or acme_approval_id or acme_progress_certificate_id"/>
+                <button name="action_acme_invoice_odm_approve" type="object" string="ODM Approve Invoice"
+                        groups="acme_project_core.group_acme_odm"
+                        invisible="state != 'draft' or (not acme_approval_id and not acme_progress_certificate_id) or acme_invoice_odm_id"/>
+                <button name="action_acme_invoice_dm_authorize" type="object" string="DM Authorize Invoice"
+                        groups="acme_project_core.group_acme_dm"
+                        invisible="state != 'draft' or not acme_invoice_odm_id or acme_invoice_dm_id"/>
+            </xpath>
+            <xpath expr="//group[@id='header_left_group']" position="inside">
+                <field name="acme_is_project" invisible="move_type != 'out_invoice'"
+                       readonly="state != 'draft' or acme_approval_id or acme_progress_certificate_id"/>
+                <field name="acme_project_id" string="Project" invisible="move_type != 'out_invoice' or (not acme_is_project and not acme_project_id)"
+                       readonly="state != 'draft' or acme_approval_id or acme_progress_certificate_id"
+                       domain="[('company_id', '=', company_id)]"/>
+                <field name="acme_invoice_payment_type" invisible="move_type != 'out_invoice' or not acme_is_project"
+                       readonly="state != 'draft' or acme_approval_id or acme_progress_certificate_id"/>
+                <field name="acme_invoice_advance_source_id"
+                       invisible="move_type != 'out_invoice' or not acme_is_project or acme_invoice_payment_type != 'advance' or acme_approval_id"
+                       domain="[('acme_kind', '=', 'advance'), ('request_status', '=', 'approved'), ('acme_project_id', '=', acme_project_id), ('company_id', '=', company_id)]"/>
+                <field name="acme_invoice_pc_source_id"
+                       invisible="move_type != 'out_invoice' or not acme_is_project or acme_invoice_payment_type != 'certificate' or acme_progress_certificate_id"
+                       domain="[('acme_certificate_type', '=', 'progress'), ('state', '=', 'certified'), ('project_id', '=', acme_project_id), ('company_id', '=', company_id)]"/>
+                <field name="acme_approval_id" readonly="1" invisible="not acme_approval_id"/>
+                <field name="acme_progress_certificate_id" readonly="1" invisible="not acme_progress_certificate_id"/>
+                <field name="acme_invoice_odm_id" invisible="not acme_invoice_odm_id"/>
+                <field name="acme_invoice_odm_at" invisible="not acme_invoice_odm_id"/>
+                <field name="acme_invoice_dm_id" invisible="not acme_invoice_dm_id"/>
+                <field name="acme_invoice_dm_at" invisible="not acme_invoice_dm_id"/>
+                <field name="acme_invoice_retention" invisible="not acme_progress_certificate_id"/>
+                <field name="acme_invoice_recovery" invisible="not acme_progress_certificate_id"/>
+                <field name="acme_invoice_withholding" invisible="not acme_progress_certificate_id"/>
+                <field name="acme_invoice_net_payable" invisible="not acme_progress_certificate_id"/>
+            </xpath>
+        </field>
+    </record>
+    <record id="company_handover_configuration" model="ir.ui.view">
+        <field name="name">res.company.acme.handover.configuration</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Project Handover" name="acme_handover">
+                    <group>
+                        <field name="acme_handover_template_id"/>
+                        <field name="acme_guarantee_lead_days"/>
+                        <field name="acme_guarantee_reminder_user_id"/>
+                        <field name="acme_operations_partner_ids" widget="many2many_tags"/>
+                        <field name="acme_handover_partner_ids" widget="many2many_tags"/>
+                        <field name="acme_advance_vat_rate"/>
+                        <field name="acme_advance_invoice_product_id"/>
+                        <field name="acme_advance_invoice_tax_id"/>
+                        <field name="acme_work_advance_finance_user_id"/>
+                        <field name="acme_variation_route_reductions_by_absolute"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+    <record id="advance_certificate_form" model="ir.ui.view">
+        <field name="name">acme.project.certificate.advance</field>
+        <field name="model">acme.project.certificate</field>
+        <field name="inherit_id" ref="acme_project_core.certificate_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_acme_dm_authorize_advance" type="object" string="Create / Open Draft Invoice"
+                        groups="account.group_account_invoice"
+                        invisible="acme_certificate_type != 'advance'"/>
+            </xpath>
+            <xpath expr="//button[@name='action_certify' or @name='action_load_boq' or @name='action_refresh_boq']" position="attributes">
+                <attribute name="invisible" add="acme_certificate_type == 'advance'" separator=" or "/>
+            </xpath>
+            <field name="project_id" position="after">
+                <field name="acme_certificate_type" string="Certificate Type" readonly="state != 'draft' or acme_odm_approved_by"/>
+                <field name="acme_advance_request_id" string="Advance Request" invisible="acme_certificate_type != 'advance'"
+                       required="acme_certificate_type == 'advance'" readonly="state != 'draft' or acme_odm_approved_by"
+                       domain="[('acme_project_id', '=', project_id), ('acme_kind', '=', 'advance'), ('request_status', '=', 'approved')]"/>
+                <field name="acme_requested_advance" invisible="acme_certificate_type != 'advance'"/>
+                <field name="acme_odm_approved_by" invisible="1"/>
+                <field name="acme_advance_paid" string="Advance Paid" invisible="acme_certificate_type != 'advance'"/>
+            </field>
+            <field name="line_ids" position="attributes">
+                <attribute name="invisible">acme_certificate_type == 'advance'</attribute>
+            </field>
+            <xpath expr="//group[@name='acme_recovery_details']" position="attributes">
+                <attribute name="invisible">acme_certificate_type == 'advance'</attribute>
+            </xpath>
+            <field name="invoice_id" position="attributes">
+                <attribute name="readonly">acme_certificate_type == 'advance'</attribute>
+            </field>
+        </field>
+    </record>
+    <record id="project_preparation_actions" model="ir.ui.view">
+        <field name="name">project.form.acme.preparation.actions</field>
+        <field name="model">project.project</field>
+        <field name="inherit_id" ref="acme_project_core.project_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page name="acme_preparation" string="Planning and Preparation">
+                    <group>
+                        <button name="action_acme_open_kickoff" type="object" string="Schedule / Open Kickoff"/>
+                        <button name="action_acme_kickoff_signoff" type="object" string="Request DM Team and Kickoff Sign-off"/>
+                        <button name="action_acme_work_advance" type="object" string="Request Mobilization Work Advance"/>
+                        <button name="action_acme_petty_cash" type="object" string="Request Project Petty Cash"/>
+                        <button name="action_acme_project_purchase" type="object" string="Outside-BOQ Purchase Request"/>
+                        <button name="action_acme_warehouse_request" type="object" string="Outside-BOQ Warehouse Requisition"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+    <record id="activity_weekly_project_review" model="mail.activity.type">
+        <field name="name">Weekly Project Review</field>
+        <field name="res_model">project.update</field>
+    </record>
+    <record id="weekly_project_update_review" model="ir.ui.view">
+        <field name="name">project.update.acme.weekly.review</field>
+        <field name="model">project.update</field>
+        <field name="inherit_id" ref="project.project_update_view_form"/>
+        <field name="arch" type="xml">
+            <field name="progress" position="after">
+                <field name="acme_has_planned_progress"/>
+                <field name="acme_planned_progress" invisible="not acme_has_planned_progress"/>
+                <button name="action_acme_request_weekly_review" type="object" string="Request ODM Review"/>
+            </field>
+        </field>
+    </record>
+    <record id="task_variation_schedule_links" model="ir.ui.view">
+        <field name="name">project.task.acme.variation.links</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="acme_project_core.task_work_dates"/>
+        <field name="arch" type="xml">
+            <field name="acme_end_date" position="after">
+                <field name="acme_task_variation_ids" widget="many2many_tags" invisible="not acme_task_variation_ids"/>
+            </field>
+        </field>
+    </record>
+    <record id="sales_order_variation_addendum" model="ir.ui.view">
+        <field name="name">sale.order.acme.variation.addendum</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <field name="acme_can_open_project_invoice" invisible="1" groups="account.group_account_invoice"/>
+                <button name="action_acme_open_project_invoice" type="object" string="Project Invoice"
+                        groups="account.group_account_invoice" invisible="not acme_can_open_project_invoice"/>
+            </xpath>
+            <field name="origin" position="after">
+                <field name="acme_original_contract_id" invisible="not acme_original_contract_id"/>
+                <field name="acme_addendum_variation_id" invisible="not acme_addendum_variation_id"
+                       groups="approvals.group_approval_user"/>
+            </field>
+        </field>
+    </record>
+    <record id="project_boq_variation_editor" model="ir.ui.view">
+        <field name="name">project.boq.variation.editor</field>
+        <field name="model">project.project</field>
+        <field name="inherit_id" ref="acme_project_core.project_boq_inline_approval"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[group/field[@name='acme_boq_state']]" position="attributes">
+                <attribute name="invisible">acme_boq_state != 'pending'</attribute>
+            </xpath>
+            <xpath expr="//div[button[@name='action_acme_edit_boq']]" position="replace">
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    <field name="acme_boq_variation_editor" invisible="1"/>
+                    <field name="acme_pending_amendment_id" invisible="1"/>
+                    <button name="action_acme_open_boq_wizard" type="object" string="Edit BOQ" class="btn-primary"
+                            invisible="not acme_boq_initialized or not acme_boq_variation_editor or acme_boq_state == 'pending' or acme_pending_amendment_id"/>
+                    <button name="action_acme_approve_boq" type="object" string="Approve BOQ Changes"
+                            invisible="acme_boq_state != 'pending' or acme_boq_approver_id != uid"/>
+                    <button name="action_acme_reject_boq" type="object" string="Reject BOQ Changes"
+                            invisible="acme_boq_state != 'pending' or acme_boq_approver_id != uid"/>
+                </div>
+                <div class="mb-2" invisible="not acme_pending_amendment_id">
+                    <span class="badge text-bg-warning">Amendment Pending</span>
+                    <button name="action_acme_open_pending_amendment" type="object" string="Open Amendment" class="btn-link"/>
+                </div>
+            </xpath>
+            <xpath expr="//group[field/list/field[@name='proposed_quantity']]" position="replace"/>
+            <xpath expr="//page[@name='acme_boq']/field[@name='acme_boq_ids']/list/field[@name='unit_rate']" position="attributes">
+                <attribute name="string">Unit Rate</attribute>
+            </xpath>
+            <xpath expr="//page[@name='acme_boq']/field[@name='acme_boq_ids']/list/field[@name='amount']" position="after">
+                <field name="acme_verified_executed_qty" string="Executed Quantity" readonly="1"/>
+                <field name="acme_verified_executed_amount" string="Executed Amount" readonly="1"/>
+            </xpath>
+            <field name="acme_boq_history_ids" position="replace">
+                <field name="acme_boq_history_ids" readonly="1" nolabel="1">
+                    <list create="0" edit="0" delete="0">
+                        <field name="number" string="Revision"/>
+                        <field name="decision_at" string="Date"/>
+                        <field name="reason"/>
+                        <field name="acme_quantity_changes" string="Before / After Quantities"/>
+                        <field name="acme_variation_request_id" string="Approval"/>
+                        <field name="state"/>
+                    </list>
+                    <form string="BOQ Change History" create="0" edit="0" delete="0">
+                        <sheet>
+                            <group><field name="number"/><field name="decision_at"/><field name="acme_variation_request_id"/><field name="state"/></group>
+                            <field name="reason"/><field name="details_html" nolabel="1"/>
+                        </sheet>
+                    </form>
+                </field>
+            </field>
+        </field>
+    </record>
+    <record id="project_boq_consolidated_execution" model="ir.ui.view">
+        <field name="name">project.boq.consolidated.execution</field>
+        <field name="model">project.project</field>
+        <field name="inherit_id" ref="acme_project_core.project_completion_fields"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='acme_boq']/field[@name='acme_boq_ids'][list/field[@name='executed_quantity']]" position="replace"/>
+        </field>
+    </record>
+    <record id="project_boq_export" model="ir.ui.view">
+        <field name="name">project.boq.export</field>
+        <field name="model">project.project</field>
+        <field name="inherit_id" ref="project_boq_variation_editor"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_acme_open_boq_wizard']" position="after">
+                <button name="action_acme_export_boq" type="object" string="Export BOQ"
+                        class="btn-secondary" invisible="not acme_boq_initialized"/>
+            </xpath>
+        </field>
+    </record>
+    <record id="task_handover_timer_visibility" model="ir.ui.view">
+        <field name="name">project.task.acme.handover.timer.visibility</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="timesheet_grid.project_task_view_form"/>
+        <field name="arch" type="xml">
+            <field name="display_timesheet_timer" position="after">
+                <field name="acme_is_handover_task" invisible="1"/>
+            </field>
+            <xpath expr="//button[@name='action_timer_start'][hasclass('btn-primary')]" position="attributes">
+                <attribute name="invisible" add="acme_is_handover_task" separator=" or "/>
+            </xpath>
+            <xpath expr="//button[@name='action_timer_start'][hasclass('btn-secondary')]" position="attributes">
+                <attribute name="invisible" add="acme_is_handover_task" separator=" or "/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

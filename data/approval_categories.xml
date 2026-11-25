@@ -1,0 +1,31 @@
+<odoo noupdate="1">
+    <record id="category_bond" model="approval.category">
+        <field name="name">Project Performance Bond</field>
+        <field name="acme_kind">bond</field>
+        <field name="has_amount">no</field>
+        <field name="has_partner">optional</field>
+        <field name="requirer_document">optional</field>
+        <field name="approval_minimum">1</field>
+        <field name="description">PM requests; configure the authorized DM as the category approver and set Minimum Approval to 1. The bond is 10% of the Project's selected tax-exclusive or tax-inclusive contract basis. The bank guarantee is issued outside Odoo; record the issued details and scan on Project.</field>
+    </record>
+    <record id="category_advance" model="approval.category">
+        <field name="name">Project Advance Payment</field>
+        <field name="acme_kind">advance</field>
+        <field name="has_amount">no</field>
+        <field name="has_partner">optional</field>
+        <field name="requirer_document">optional</field>
+        <field name="approval_minimum">2</field>
+        <field name="approver_sequence">1</field>
+        <field name="description">PM requests; configure DM review and DGM authorization using the native approver sequence. After approval an invoicing user creates a draft down-payment invoice. No automatic posting or bank payment is performed.</field>
+    </record>
+    <record id="category_guarantee" model="approval.category">
+        <field name="name">Guarantee Request</field>
+        <field name="acme_kind">guarantee</field>
+        <field name="has_amount">no</field>
+        <field name="has_partner">optional</field>
+        <field name="requirer_document">optional</field>
+        <field name="approval_minimum">2</field>
+        <field name="approver_sequence">1</field>
+        <field name="description">PM requests guarantee. DM approves, DGM Ops authorizes within limit, GM authorizes above limit.</field>
+    </record>
+</odoo>

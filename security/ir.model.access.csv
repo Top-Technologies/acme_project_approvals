@@ -1,0 +1,9 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_acme_approval_authority_user,acme.approval.authority.user,model_acme_approval_authority,approvals.group_approval_user,1,0,0,0
+access_acme_approval_authority_manager,acme.approval.authority.manager,model_acme_approval_authority,approvals.group_approval_manager,1,1,1,1
+access_acme_approval_position_assignment_user,acme.approval.position.assignment.user,model_acme_approval_position_assignment,approvals.group_approval_user,1,0,0,0
+access_acme_approval_position_assignment_manager,acme.approval.position.assignment.manager,model_acme_approval_position_assignment,approvals.group_approval_manager,1,1,1,1
+access_acme_approval_delegation_user,acme.approval.delegation.user,model_acme_approval_delegation,approvals.group_approval_user,1,0,0,0
+access_acme_approval_delegation_manager,acme.approval.delegation.manager,model_acme_approval_delegation,approvals.group_approval_manager,1,1,1,1
+access_acme_boq_amendment_wizard,boq amendment wizard,model_acme_boq_amendment_wizard,project.group_project_user,1,1,1,1
+access_acme_boq_amendment_wizard_line,boq amendment wizard line,model_acme_boq_amendment_wizard_line,project.group_project_user,1,1,1,1

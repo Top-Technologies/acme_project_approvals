@@ -1,0 +1,118 @@
+<odoo><record id="approval_category_form" model="ir.ui.view"><field name="name">approval.category.project.kind</field><field name="model">approval.category</field><field name="inherit_id" ref="approvals.approval_category_view_form"/>
+        <field name="arch" type="xml"><xpath expr="//field[@name='name']" position="after"><field name="acme_kind"/></xpath></field>
+    </record>
+    <record id="approval_category_list" model="ir.ui.view">
+        <field name="name">approval.category.project.kind.list</field>
+        <field name="model">approval.category</field>
+        <field name="inherit_id" ref="approvals.approval_category_view_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="acme_kind" string="Project Request Type" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+    <record id="action_acme_project_approval_types" model="ir.actions.act_window">
+        <field name="name">Project Approval Types</field>
+        <field name="res_model">approval.category</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('acme_kind', '!=', False)]</field>
+        <field name="context">{'active_test': True}</field>
+    </record>
+    <menuitem id="menu_acme_project_approval_types"
+              name="Project Approval Types"
+              parent="approvals.approvals_menu_config"
+              action="action_acme_project_approval_types"
+              groups="approvals.group_approval_manager"
+              sequence="5"/>
+    <record id="approval_request_form" model="ir.ui.view"><field name="name">approval.request.project</field><field name="model">approval.request</field><field name="inherit_id" ref="approvals.approval_request_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_acme_open_addendum" type="object" string="Create / Open Addendum"
+                        groups="project.group_project_user"
+                        invisible="acme_kind != 'variation' or request_status != 'approved' or not acme_variation_revision_id"/>
+                <button name="action_acme_open_advance_certificate" type="object" string="Advance Certificate"
+                        invisible="acme_kind != 'advance' or request_status != 'approved'"
+                        groups="project.group_project_user"/>
+
+                <button name="action_acme_print_request" type="object" string="Print Project Request" invisible="acme_kind not in ['bond', 'advance', 'guarantee']"/>
+            </xpath>
+            <xpath expr="//sheet" position="inside">
+                <field name="acme_kind" invisible="1"/>
+                <group string="Outside-BOQ Sourcing" invisible="acme_kind not in ['project_purchase', 'warehouse_request']">
+                    <field name="acme_project_id" readonly="request_status != 'new'"/>
+                    <field name="acme_work_analytic_account_id" string="Project Analytic Account"/>
+                    <field name="acme_preparation_signed_by_id" string="Authorized By"/>
+                    <field name="acme_preparation_signed_at" string="Authorized At"/>
+                </group>
+                <group string="Planning and Preparation" invisible="acme_kind not in ['kickoff', 'work_advance', 'petty_cash']">
+                    <field name="acme_project_id" readonly="request_status != 'new'"/>
+                    <field name="acme_kickoff_snapshot" string="Kickoff Snapshot" invisible="acme_kind != 'kickoff' or request_status == 'new'" widget="json"/>
+                    <field name="acme_staff_employee_id" invisible="acme_kind not in ['work_advance', 'petty_cash']"
+                           readonly="request_status != 'new'" domain="[('company_id', '=', company_id)]"
+                           options="{'no_create': True}"/>
+                    <field name="acme_work_purpose" invisible="acme_kind != 'work_advance'" readonly="request_status != 'new'"/>
+                    <field name="acme_currency_id" invisible="acme_kind not in ['work_advance', 'petty_cash']"/>
+                    <field name="acme_amount" invisible="acme_kind not in ['work_advance', 'petty_cash']" readonly="request_status != 'new'"/>
+                    <field name="acme_work_analytic_account_id" string="Work Analytic Account" invisible="acme_kind not in ['work_advance', 'petty_cash']"/>
+                    <field name="acme_preparation_signed_by_id"/>
+                    <field name="acme_preparation_signed_at"/>
+                </group>
+                <group string="BOQ Variation" invisible="acme_kind != 'variation'">
+                    <field name="acme_project_id" required="acme_kind == 'variation'" readonly="request_status != 'new'"/>
+                    <field name="acme_variation_batch_details" widget="html" nolabel="1" colspan="2"
+                           invisible="not acme_variation_batch_details"/>
+                    <field name="acme_variation_line_id" string="Variation Line" domain="[('project_id', '=', acme_project_id)]"
+                           required="acme_kind == 'variation' and not acme_variation_new_source_id and not acme_variation_batch_details" invisible="acme_variation_batch_details" readonly="request_status != 'new'" options="{'no_create': True}"/>
+                    <field name="acme_variation_order_id" invisible="1"/>
+                    <field name="acme_variation_new_source_id" invisible="acme_variation_line_id or acme_variation_batch_details"
+                           readonly="request_status != 'new'" options="{'no_create': True}"
+                           domain="[('order_id', '=', acme_variation_order_id), ('display_type', '=', False)]"/>
+                    <field name="acme_variation_current_quantity" invisible="acme_variation_batch_details"/>
+                    <field name="acme_variation_quantity" invisible="acme_variation_batch_details" readonly="request_status != 'new'"/>
+                    <field name="acme_variation_description" invisible="acme_variation_batch_details" readonly="request_status != 'new'"/>
+                    <field name="acme_variation_change_rate" invisible="acme_variation_batch_details" readonly="request_status != 'new'"/>
+                    <field name="acme_variation_rate" invisible="not acme_variation_change_rate or acme_variation_batch_details" readonly="request_status != 'new'"/>
+                    <field name="acme_currency_id" invisible="1"/>
+                    <field name="acme_variation_value" string="Untaxed Value Impact"/>
+                    <field name="acme_variation_task_ids" widget="many2many_tags" domain="[('project_id', '=', acme_project_id)]"
+                           options="{'no_create': True}" readonly="request_status != 'new'"/>
+                    <field name="acme_variation_revision_id" string="Variation Revision" invisible="not acme_variation_revision_id"/>
+                </group>
+                <group string="Advance Requisition" invisible="acme_kind != 'advance'">
+                    <group>
+                        <field name="acme_advance_date" readonly="request_status != 'new'"/>
+                        <field name="acme_advance_ref" readonly="request_status != 'new'" placeholder="Assigned on save"/>
+                        <field name="partner_id" string="Client" readonly="request_status != 'new'"/>
+                        <field name="acme_advance_contract_name" readonly="request_status != 'new'"/>
+                        <field name="acme_advance_contract_code"/>
+                        <field name="acme_advance_description" readonly="request_status != 'new'"/>
+                    </group>
+                    <group>
+                        <field name="acme_advance_type" string="Advance Type"/>
+                        <field name="acme_advance_percent" invisible="acme_advance_type != 'percentage'"/>
+                        <field name="acme_advance_vat_rate"/>
+                        <field name="acme_advance_vat" string="Advance Vat"/>
+                        <field name="acme_advance_total" string="Advance Total"/>
+                        <field name="acme_advance_checked_by" string="Advance Checked By"/>
+                        <field name="acme_advance_checked_at" string="Advance Checked At"/>
+                        <field name="acme_advance_approved_by" string="Advance Approved By"/>
+                        <field name="acme_advance_approved_at" string="Advance Approved At"/>
+                        <field name="acme_advance_authorized_by" string="Advance Authorized By"/>
+                        <field name="acme_advance_authorized_at" string="Advance Authorized At"/>
+                    </group>
+                </group>
+                <group string="PM Assignment" invisible="acme_kind != 'pm_assignment'">
+                    <field name="acme_project_id" readonly="1"/>
+                    <field name="acme_pm_dm_id" string="Pm Dm"/>
+                    <field name="acme_pm_registration" string="Pm Registration"/>
+                </group>
+                <group string="Project Request" invisible="acme_kind not in ['bond', 'advance', 'guarantee']">
+                    <group><field name="acme_project_id" readonly="request_status != 'new'"/><field name="acme_contract_reference" readonly="request_status != 'new'"/><field name="acme_contract_amount"/><field name="acme_currency_id"/><field name="acme_amount" readonly="request_status != 'new'"/></group>
+                    <group><field name="acme_addressee" readonly="request_status != 'new'" invisible="acme_kind != 'bond'"/><field name="acme_addressee_address" readonly="request_status != 'new'" invisible="acme_kind != 'bond'"/><field name="acme_bank_id" readonly="request_status != 'new'"/><field name="acme_beneficiary" readonly="request_status != 'new'"/><field name="acme_account_number" readonly="request_status != 'new'"/><field name="acme_branch" readonly="request_status != 'new'"/><field name="acme_city" readonly="request_status != 'new'"/></group>
+                    <field name="acme_remarks" readonly="request_status != 'new'"/>
+                </group>
+                <field name="acme_invoice_ids" readonly="1" invisible="not acme_kind"><list create="0" delete="0"><field name="name"/><field name="invoice_date"/><field name="amount_total"/><field name="currency_id"/><field name="state"/><field name="payment_state"/></list></field>
+            </xpath>
+        </field>
+    </record>
+</odoo>

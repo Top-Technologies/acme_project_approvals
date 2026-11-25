@@ -1,0 +1,179 @@
+<odoo>
+    <template id="progress_certificate_document" inherit_id="acme_project_core.certificate_document">
+        <xpath expr="//h2" position="after">
+            <p t-if="o.acme_site">
+                <strong>Site</strong> <span t-field="o.acme_site"/> |
+                <strong>Billing period</strong> <span t-field="o.acme_period_start"/> – <span t-field="o.acme_period_end"/>
+            </p>
+            <p><strong>Contract code</strong> <span t-field="o.project_id.acme_project_sequence"/></p>
+        </xpath>
+        <xpath expr="//table[2]" position="replace">
+            <table class="table table-sm">
+                <thead>
+                    <tr><th rowspan="2">Item</th><th rowspan="2">Unit</th><th rowspan="2">Rate</th>
+                        <th colspan="2">Contract</th><th colspan="2">Previous</th>
+                        <th colspan="2">This Period</th><th colspan="2">To Date</th></tr>
+                    <tr><th>Qty</th><th>Value</th><th>Qty</th><th>Value</th>
+                        <th>Qty</th><th>Value</th><th>Qty</th><th>Value</th></tr>
+                </thead>
+                <tbody>
+                    <tr t-foreach="o.line_ids" t-as="line">
+                        <td><span t-field="line.reference"/> <span t-field="line.name"/><br/><span t-field="line.acme_billing_basis"/></td>
+                        <td><span t-field="line.unit"/></td><td><span t-field="line.unit_rate"/></td>
+                        <td><span t-field="line.contract_quantity"/></td>
+                        <td><span t-out="line.contract_quantity * line.unit_rate" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/></td>
+                        <td><span t-field="line.previous_quantity"/></td><td><span t-field="line.acme_pc_previous_value"/></td>
+                        <td><span t-field="line.quantity"/></td><td><span t-field="line.amount"/></td>
+                        <td><span t-field="line.cumulative_quantity"/></td>
+                        <td><span t-out="line.acme_pc_previous_value + line.amount" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/></td>
+                    </tr>
+                </tbody>
+            </table>
+        </xpath>
+        <xpath expr="//p[strong[contains(., 'Customer Invoice')]]" position="after">
+            <t t-set="invoice" t-value="o.acme_pc_invoice_ids"/>
+            <t t-if="invoice">
+                <h3>Payment and VAT Summary — <span t-field="o.acme_site"/></h3>
+                <table class="table table-sm">
+                    <tbody>
+                        <tr><th>Invoice Excluding Tax</th><td><span t-field="invoice.amount_untaxed"/></td></tr>
+                        <tr><th>Customer Invoice VAT</th><td><span t-field="invoice.amount_tax"/></td></tr>
+                        <tr><th>Invoice Including Tax</th><td><span t-field="invoice.amount_total"/></td></tr>
+                        <tr><th>Retention</th><td><span t-field="o.retention_amount"/></td></tr>
+                        <tr><th>Advance Recovery</th><td><span t-field="o.recovery_amount"/></td></tr>
+                        <tr><th>Withholding</th><td><span t-field="o.acme_pc_withholding"/></td></tr>
+                        <tr><th>Net Payable per Certificate</th><td><span t-field="o.acme_pc_net_payable"/></td></tr>
+                    </tbody>
+                </table>
+                <p><strong>Amount in words</strong> <span t-out="o.currency_id.amount_to_text(o.acme_pc_net_payable)"/></p>
+                <p t-if="o.state == 'certified'"><strong>Advance remaining after this certificate</strong>
+                    <span t-out="o.recovery_limit - o.recovery_amount" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/></p>
+                <p t-if="invoice.partner_bank_id"><strong>Payee bank</strong> <span t-field="invoice.partner_bank_id"/></p>
+                <p t-if="invoice.acme_pc_acceptance_signer_id"><strong>Client or consultant acceptance</strong>
+                    <span t-field="invoice.acme_pc_acceptance_signer_id"/> <span t-field="invoice.acme_pc_acceptance_date"/></p>
+            </t>
+            <p t-if="o.acme_pc_pm_id"><strong>Prepared by PM</strong> <span t-field="o.acme_pc_pm_id"/> <span t-field="o.acme_pc_submitted_at"/></p>
+            <p t-if="o.acme_pc_dm_id"><strong>Quantity approval</strong> <span t-field="o.acme_pc_dm_id"/> <span t-field="o.acme_pc_dm_at"/></p>
+            <p t-if="o.signed_takeoff"><strong>Signed takeoff attached</strong> <span t-field="o.signed_takeoff_filename"/></p>
+        </xpath>
+    </template>
+    <template id="ipc_output_table">
+        <t t-call="web.external_layout">
+            <div class="page">
+                <h2><span t-out="title"/> · <span t-field="o.acme_ipc_round"/></h2>
+                <p><strong t-field="o.project_id"/> | <span t-field="o.acme_site"/>
+                    | <span t-field="o.acme_period_start"/> – <span t-field="o.acme_period_end"/>
+                    | <span t-field="o.currency_id"/></p>
+                <table class="table table-sm" t-att-style="'font-size: 8pt' if key == 'detail' else ''">
+                    <thead><tr><th t-foreach="o._acme_ipc_headers()[key]" t-as="column" t-out="column"/></tr></thead>
+                    <tbody>
+                        <tr t-foreach="o._acme_ipc_outputs()[key]" t-as="row">
+                            <td t-foreach="row" t-as="value" t-out="value"/>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </t>
+    </template>
+    <template id="ipc_sheet_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="acme_project_approvals.ipc_output_table">
+                    <t t-set="key" t-value="'cover'"/>
+                    <t t-set="title" t-value="'IPC Sheet'"/>
+                </t>
+            </t>
+        </t>
+    </template>
+    <record id="report_ipc_sheet" model="ir.actions.report">
+        <field name="name">IPC Sheet</field>
+        <field name="model">acme.project.certificate</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">acme_project_approvals.ipc_sheet_document</field>
+    </record>
+    <template id="ipc_detail_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-set="output" t-value="o._acme_ipc_outputs()"/>
+                <t t-set="cover" t-value="output['cover']"/>
+                <t t-set="company" t-value="o.company_id"/>
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <p><strong>Project Name</strong> <span t-out="cover[1][1]"/><br/>
+                            <strong>Project Location</strong> <span t-out="cover[5][1]"/><br/>
+                            <strong>Client</strong> <span t-out="cover[4][1]"/><br/>
+                            <strong>Contractor</strong> <span t-out="output.get('client_excel', {}).get('contractor', '')"/></p>
+                        <h2 class="text-center">Measurement of Executed Work · <span t-out="cover[0][1]"/></h2>
+                        <table class="table table-bordered table-sm" style="font-size: 8pt;">
+                            <thead style="display: table-header-group; background: #e7edf3;">
+                                <tr><th rowspan="2">Item No.</th><th rowspan="2" style="width: 26%;">Description</th>
+                                    <th rowspan="2">Unit</th><th colspan="5">Quantity</th>
+                                    <th colspan="6">Amount (<span t-out="cover[7][1]"/>)</th></tr>
+                                <tr><th>Contract</th><th>Previous</th><th>Current</th><th>To Date</th><th>Remaining</th>
+                                    <th>Unit Rate</th><th>Contract</th><th>Previous</th><th>Current</th><th>To Date</th><th>Remaining</th></tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="output['summary']" t-as="section">
+                                    <tr style="background: #f2f5f3;"><th colspan="14" t-out="section[0]"/></tr>
+                                    <t t-foreach="output['detail']" t-as="line">
+                                        <tr t-if="line[0] == section[0]" style="page-break-inside: avoid;">
+                                            <td t-foreach="(1, 2, 3)" t-as="idx" t-out="line[idx]"/>
+                                            <td class="text-end" t-foreach="(5, 7, 9, 11, 13)" t-as="idx" t-out="line[idx]"/>
+                                            <td class="text-end" t-foreach="(4, 6, 8, 10, 12, 14)" t-as="idx">
+                                                <span t-out="line[idx]" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                    <tr><th colspan="9">Section Subtotal</th>
+                                        <th class="text-end" t-foreach="section[1:5] + [section[1] - section[4]]" t-as="amount">
+                                            <span t-out="amount" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                                        </th>
+                                    </tr>
+                                </t>
+                                <tr style="background: #f2f5f3;"><th colspan="9">Grand Total (Untaxed)</th>
+                                    <th class="text-end" t-foreach="(1, 2, 3, 4, 5)" t-as="column">
+                                        <span t-out="sum(section[column] if column &lt; 5 else section[1] - section[4] for section in output['summary'])"
+                                              t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                                    </th>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+    <record id="paperformat_ipc_detail" model="report.paperformat">
+        <field name="name">IPC Detailed BOQ</field>
+        <field name="format">A4</field>
+        <field name="orientation">Landscape</field>
+        <field name="margin_top">42</field>
+        <field name="margin_bottom">15</field>
+        <field name="margin_left">7</field>
+        <field name="margin_right">7</field>
+        <field name="header_spacing">24</field>
+    </record>
+    <record id="report_ipc_detail" model="ir.actions.report">
+        <field name="paperformat_id" ref="paperformat_ipc_detail"/>
+        <field name="name">Detailed BOQ Sheet</field>
+        <field name="model">acme.project.certificate</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">acme_project_approvals.ipc_detail_document</field>
+    </record>
+    <template id="ipc_summary_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="acme_project_approvals.ipc_output_table">
+                    <t t-set="key" t-value="'summary'"/>
+                    <t t-set="title" t-value="'Summary Sheet'"/>
+                </t>
+            </t>
+        </t>
+    </template>
+    <record id="report_ipc_summary" model="ir.actions.report">
+        <field name="name">Summary Sheet</field>
+        <field name="model">acme.project.certificate</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">acme_project_approvals.ipc_summary_document</field>
+    </record>
+</odoo>

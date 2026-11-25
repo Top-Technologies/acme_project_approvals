@@ -1,0 +1,67 @@
+<odoo>
+    <record id="staff_settlement_approval_form" model="ir.ui.view">
+        <field name="name">approval.request.acme.staff.settlement</field>
+        <field name="model">approval.request</field>
+        <field name="inherit_id" ref="approval_request_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_acme_open_settlement_entries" type="object" string="Open Settlement Entries"
+                        groups="account.group_account_user"
+                        invisible="acme_kind not in ['work_advance', 'petty_cash'] or request_status != 'approved'"/>
+            </xpath>
+            <xpath expr="//sheet" position="inside">
+                <group string="Posted Staff Advance Settlement" invisible="acme_kind not in ['work_advance', 'petty_cash'] or request_status != 'approved'">
+                    <field name="acme_settlement_available" invisible="1"/>
+                    <field name="acme_settlement_company_currency_id" invisible="1"/>
+                    <field name="acme_settlement_due_date" groups="account.group_account_user"/>
+                    <group invisible="not acme_settlement_available">
+                        <field name="acme_settlement_due" string="Settlement Due"/>
+                        <field name="acme_settlement_paid" string="Settlement Paid"/>
+                        <field name="acme_settlement_applied" string="Settlement Applied"/>
+                        <field name="acme_settlement_refunded" string="Settlement Refunded"/>
+                        <field name="acme_settlement_reimbursed" string="Settlement Reimbursed"/>
+                        <field name="acme_settlement_outstanding" string="Settlement Outstanding"/>
+                        <field name="acme_settlement_excess_due" string="Settlement Excess Due"/>
+                    </group>
+                    <div invisible="acme_settlement_available">Settlement figures require Finance configuration and access to the posted entries.</div>
+                </group>
+            </xpath>
+        </field>
+    </record>
+    <record id="journal_staff_settlement_form" model="ir.ui.view">
+        <field name="name">account.move.acme.staff.settlement</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/notebook" position="inside">
+                <page name="acme_staff_settlement" string="Staff Advance" invisible="move_type != 'entry' or reversed_entry_id"
+                      groups="account.group_account_user">
+                    <group>
+                        <field name="acme_settlement_account_id" invisible="1"/>
+                        <field name="acme_settlement_advance_id"
+                               readonly="state == 'posted' and acme_settlement_account_id"
+                               domain="[('company_id', '=', company_id), ('acme_kind', 'in', ['work_advance', 'petty_cash']), ('request_status', '=', 'approved')]"
+                               options="{'no_create': True}"/>
+                        <field name="acme_settlement_role" invisible="not acme_settlement_advance_id"
+                               readonly="state == 'posted' and acme_settlement_account_id"/>
+                        <field name="acme_settlement_expense_id" invisible="acme_settlement_role != 'applied'"
+                               readonly="state == 'posted' and acme_settlement_account_id"
+                               domain="[('acme_staff_advance_id', '=', acme_settlement_advance_id)]" options="{'no_create': True}"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+    <record id="company_staff_settlement_form" model="ir.ui.view">
+        <field name="name">res.company.acme.settlement.accounts</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="company_project_costing_policy"/>
+        <field name="arch" type="xml">
+            <field name="acme_material_cost_basis" position="after">
+                <field name="acme_staff_advance_account_id" groups="account.group_account_manager"/>
+                <field name="acme_staff_reimbursement_account_id" groups="account.group_account_manager"/>
+                <field name="acme_staff_settlement_days" groups="account.group_account_manager"/>
+            </field>
+        </field>
+    </record>
+</odoo>

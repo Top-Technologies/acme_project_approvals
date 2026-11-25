@@ -1,0 +1,42 @@
+<odoo>
+    <record id="module_category_acme_project" model="ir.module.category">
+        <field name="name">ACME Project Governance</field>
+        <field name="description">Roles for ACME Project Management and Governance</field>
+        <field name="sequence">20</field>
+    </record>
+
+    <record id="privilege_acme_project_governance" model="res.groups.privilege">
+        <field name="name">ACME Project Governance</field>
+        <field name="category_id" ref="module_category_acme_project"/>
+    </record>
+
+    <record id="group_acme_edm" model="res.groups">
+        <field name="name">EDM (Engineering &amp; Design Manager)</field>
+        <field name="privilege_id" ref="privilege_acme_project_governance"/>
+        <field name="implied_ids" eval="[(4, ref('project.group_project_manager'))]"/>
+    </record>
+
+    <record id="group_acme_odm" model="res.groups">
+        <field name="name">ODM (Operations Department Manager)</field>
+        <field name="privilege_id" ref="privilege_acme_project_governance"/>
+        <field name="implied_ids" eval="[(4, ref('project.group_project_manager'))]"/>
+    </record>
+
+    <record id="group_acme_dm" model="res.groups">
+        <field name="name">DM (Division Manager)</field>
+        <field name="privilege_id" ref="privilege_acme_project_governance"/>
+        <field name="implied_ids" eval="[(4, ref('project.group_project_manager'))]"/>
+    </record>
+
+    <record id="group_acme_dgm" model="res.groups">
+        <field name="name">DGM (Deputy General Manager Operations)</field>
+        <field name="privilege_id" ref="privilege_acme_project_governance"/>
+        <field name="implied_ids" eval="[(4, ref('project.group_project_manager'))]"/>
+    </record>
+
+    <record id="group_acme_gm" model="res.groups">
+        <field name="name">GM (General Manager)</field>
+        <field name="privilege_id" ref="privilege_acme_project_governance"/>
+        <field name="implied_ids" eval="[(4, ref('project.group_project_manager'))]"/>
+    </record>
+</odoo>

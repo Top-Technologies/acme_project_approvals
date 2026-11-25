@@ -1,0 +1,142 @@
+<odoo>
+    <record id="progress_certificate_form" model="ir.ui.view">
+        <field name="name">acme.project.certificate.progress.workflow</field>
+        <field name="model">acme.project.certificate</field>
+        <field name="inherit_id" ref="advance_certificate_form"/>
+        <field name="arch" type="xml">
+            <field name="acme_proposed_recovery" position="attributes">
+                <attribute name="string">Proposed Recovery</attribute>
+            </field>
+            <field name="acme_recovery_override" position="attributes">
+                <attribute name="string">Recovery Override</attribute>
+            </field>
+            <field name="acme_recovery_override_reason" position="attributes">
+                <attribute name="string">Recovery Override Reason</attribute>
+            </field>
+            <xpath expr="//button[@name='action_certify']" position="attributes">
+                <attribute name="invisible">True</attribute>
+            </xpath>
+            <xpath expr="//header" position="inside">
+                <button name="action_acme_pc_draft_invoice" type="object" string="Create / Open Progress Invoice"
+                        invisible="acme_certificate_type != 'progress' or state == 'cancel'"/>
+                <button name="action_acme_pc_submit" type="object" string="Submit to DM"
+                        invisible="acme_certificate_type != 'progress' or state != 'draft' or not acme_ipc_is_pm or not acme_pc_invoice_ids"/>
+                <button name="action_acme_pc_dm_review" type="object" string="DM Approve Quantities"
+                        groups="acme_project_core.group_acme_dm"
+                        invisible="acme_certificate_type != 'progress' or state != 'draft' or not acme_pc_submitted_at"/>
+                <button name="action_acme_pc_authorize" type="object" string="Authorize IPC"
+                        groups="acme_project_core.group_acme_dgm,acme_project_core.group_acme_gm"
+                        invisible="acme_certificate_type != 'progress' or state != 'draft' or not acme_pc_dm_id"/>
+                <button name="action_acme_export_ipc" type="object" string="Print / Export Excel" class="btn-primary"
+                        invisible="acme_certificate_type != 'progress' or state != 'certified'"/>
+                <button name="action_acme_pc_reopen" type="object" string="Revise Before Posting"
+                        invisible="acme_certificate_type != 'progress' or state != 'certified' or not acme_pc_invoice_ids"/>
+                <button name="action_acme_verify_ipc_evidence" type="object" string="Verify Take-off Evidence"
+                        invisible="not acme_ipc_managed or not acme_ipc_is_pm or state != 'draft'"/>
+            </xpath>
+            <xpath expr="//header/button[@name='action_load_boq']" position="attributes">
+                <attribute name="invisible" add="acme_certificate_type == 'progress'" separator=" or "/>
+            </xpath>
+            <xpath expr="//header/button[@name='action_refresh_boq']" position="attributes">
+                <attribute name="invisible" add="acme_certificate_type == 'progress'" separator=" or "/>
+            </xpath>
+            <xpath expr="//header/button[@name='action_print']" position="attributes">
+                <attribute name="invisible" add="acme_certificate_type == 'progress'" separator=" or "/>
+            </xpath>
+            <field name="acme_certificate_type" position="attributes">
+                <attribute name="invisible">acme_certificate_type == 'progress'</attribute>
+            </field>
+            <xpath expr="//field[@name='date']" position="after">
+                <field name="acme_ipc_managed" invisible="1"/>
+                <field name="acme_ipc_is_pm" invisible="1"/>
+                <field name="acme_ipc_round" string="Round" invisible="acme_certificate_type != 'progress'"/>
+                <field name="acme_evidence_state" invisible="not acme_ipc_managed"/>
+                <field name="acme_evidence_verified_by_id" invisible="not acme_ipc_managed"/>
+                <field name="acme_evidence_verified_at" invisible="not acme_ipc_managed"/>
+                <field name="acme_round_evidence_ids" widget="many2many_binary"
+                       invisible="not acme_ipc_managed" readonly="state != 'draft'"/>
+                <field name="acme_site" invisible="acme_certificate_type != 'progress'" readonly="state != 'draft'"/>
+                <field name="acme_period_start" string="Period Start" invisible="acme_certificate_type != 'progress'" readonly="state != 'draft'"/>
+                <field name="acme_period_end" string="Period End" invisible="acme_certificate_type != 'progress'" readonly="state != 'draft'"/>
+            </xpath>
+            <xpath expr="//field[@name='line_ids']/list/field[@name='quantity']" position="attributes">
+                <attribute name="string">Current Round Executed Qty</attribute>
+                <attribute name="readonly">parent.acme_ipc_managed and not parent.acme_ipc_is_pm</attribute>
+            </xpath>
+            <xpath expr="//field[@name='line_ids']/list/field[@name='quantity']" position="before">
+                <field name="acme_site_quantity" column_invisible="1"/>
+            </xpath>
+            <xpath expr="//field[@name='line_ids']/list/field[@name='cumulative_quantity']" position="after">
+                <field name="acme_remaining_quantity"/>
+            </xpath>
+            <xpath expr="//field[@name='line_ids']/list/field[@name='unit_rate']" position="after">
+                <field name="acme_summary_contract" string="Contract Amount"/>
+                <field name="acme_bill_current_amount" string="Current Executed Amount"/>
+                <field name="acme_bill_to_date_amount" string="To-Date Executed Amount"/>
+            </xpath>
+            <xpath expr="//field[@name='line_ids']/list/field[@name='amount']" position="attributes">
+                <attribute name="column_invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='invoice_id']" position="attributes">
+                <attribute name="readonly">True</attribute>
+            </xpath>
+            <xpath expr="//field[@name='invoice_id']" position="after">
+                <field name="acme_pc_invoice_ids" readonly="1" invisible="1"/>
+                <field name="acme_pc_pm_id" string="Pc Pm" invisible="not acme_pc_pm_id"/>
+                <field name="acme_pc_submitted_at" string="Pc Submitted At" invisible="not acme_pc_submitted_at"/>
+                <field name="acme_pc_dm_id" string="Pc Dm" invisible="not acme_pc_dm_id"/>
+                <field name="acme_pc_dm_at" string="Pc Dm At" invisible="not acme_pc_dm_at"/>
+                <field name="acme_pc_withholding" string="Pc Withholding" invisible="acme_certificate_type != 'progress'"/>
+                <field name="acme_pc_net_payable" string="Pc Net Payable" invisible="acme_certificate_type != 'progress'"/>
+            </xpath>
+        </field>
+    </record>
+    <record id="invoice_progress_certificate_acceptance" model="ir.ui.view">
+        <field name="name">account.move.progress.certificate.acceptance</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <field name="invoice_origin" position="after">
+                <field name="acme_progress_certificate_id" invisible="not acme_progress_certificate_id"/>
+                <field name="acme_pc_acceptance" invisible="not acme_progress_certificate_id" readonly="state == 'posted'"/>
+                <field name="acme_pc_acceptance_signer_id" invisible="not acme_progress_certificate_id" readonly="state == 'posted'"/>
+                <field name="acme_pc_acceptance_date" invisible="not acme_progress_certificate_id" readonly="state == 'posted'"/>
+            </field>
+        </field>
+    </record>
+    <record id="project_progress_terms" model="ir.ui.view">
+        <field name="name">project.progress.withholding.terms</field>
+        <field name="model">project.project</field>
+        <field name="inherit_id" ref="acme_project_core.project_form"/>
+        <field name="arch" type="xml">
+            <field name="acme_retention_percent" position="after">
+                <field name="acme_pc_withholding_basis"/>
+                <field name="acme_pc_withholding_rate" invisible="acme_pc_withholding_basis in [False, 'none']"/>
+            </field>
+        </field>
+    </record>
+    <record id="company_progress_posting" model="ir.ui.view">
+        <field name="name">res.company.progress.posting.policy</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="company_handover_configuration"/>
+        <field name="arch" type="xml">
+            <field name="acme_advance_invoice_tax_id" position="after">
+                <field name="acme_pc_allow_gross_posting" groups="account.group_account_manager"/>
+            </field>
+        </field>
+    </record>
+    <record id="project_request_bill" model="ir.ui.view">
+        <field name="name">project.request.bill</field>
+        <field name="model">project.project</field>
+        <field name="inherit_id" ref="acme_project_core.project_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_acme_request_bill" type="object" class="oe_stat_button" icon="fa-file-text-o"
+                        string="Request Bill" invisible="not acme_boq_initialized"/>
+            </xpath>
+            <xpath expr="//page[@name='acme_contract']" position="inside">
+                <group string="Site Execution"><field name="acme_site_engineer_id"/></group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

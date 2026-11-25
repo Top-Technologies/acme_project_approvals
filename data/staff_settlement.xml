@@ -1,0 +1,32 @@
+<odoo noupdate="1">
+    <record id="category_project_petty_cash" model="approval.category">
+        <field name="name">Project Petty Cash</field>
+        <field name="company_id" ref="base.main_company"/>
+        <field name="acme_kind">petty_cash</field>
+        <field name="approval_minimum">2</field>
+        <field name="approver_sequence">1</field>
+        <field name="description">Configure Petty Cash authority by company and currency. Settlements use the same staff control accounts as work advances.</field>
+    </record>
+    <record id="rule_staff_payee_read_authorization" model="ir.rule">
+        <field name="name">Staff payee reads own authorized advance</field>
+        <field name="model_id" ref="approvals.model_approval_request"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">[('acme_kind', 'in', ['work_advance', 'petty_cash']), ('request_status', '=', 'approved'), ('acme_staff_employee_id.user_id', '=', user.id)]</field>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="activity_staff_settlement" model="mail.activity.type">
+        <field name="name">Settle Staff Advance</field>
+        <field name="res_model">approval.request</field>
+    </record>
+    <record id="cron_staff_settlement" model="ir.cron">
+        <field name="name">ACME Staff Advance Settlement Reminders</field>
+        <field name="model_id" ref="approvals.model_approval_request"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_acme_staff_settlements()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+    </record>
+</odoo>

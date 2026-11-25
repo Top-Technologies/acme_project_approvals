@@ -1,0 +1,71 @@
+<odoo><record id="report_project_request" model="ir.actions.report">
+        <field name="name">Project Request</field><field name="model">approval.request</field>
+        <field name="report_type">qweb-pdf</field><field name="report_name">acme_project_approvals.project_request_document</field>
+    </record>
+    <template id="project_request_document">
+        <t t-call="web.html_container"><t t-foreach="docs" t-as="o"><t t-call="web.external_layout"><div class="page">
+            <t t-if="o.acme_kind == 'advance'">
+                <h2>Advance Payment Requisition</h2>
+                <p><strong>Date:</strong> <span t-field="o.acme_advance_date"/> |
+                    <strong>Ref No.:</strong> <span t-field="o.acme_advance_ref"/></p>
+                <p><strong>Client:</strong> <span t-field="o.partner_id"/><br/>
+                    <strong>Contract Name:</strong> <span t-field="o.acme_advance_contract_name"/><br/>
+                    <strong>Contract Code:</strong> <span t-field="o.acme_advance_contract_code"/><br/>
+                    <strong>Contract Reference:</strong> <span t-field="o.acme_contract_reference"/><br/>
+                    <strong>Contract Value:</strong> <span t-field="o.acme_contract_amount"/><br/>
+                    <strong>Advance Type:</strong> <span t-field="o.acme_advance_type"/>
+                    <t t-if="o.acme_advance_type == 'percentage'"> — <span t-field="o.acme_advance_percent"/>%</t>
+                </p>
+                <table class="table table-sm">
+                    <thead><tr><th>Description</th><th class="text-end">Amount</th></tr></thead>
+                    <tbody>
+                        <tr><td><span t-field="o.acme_advance_description"/></td><td class="text-end"><span t-field="o.acme_amount"/></td></tr>
+                        <tr><td>VAT (<span t-field="o.acme_advance_vat_rate"/>%)</td><td class="text-end"><span t-field="o.acme_advance_vat"/></td></tr>
+                        <tr><th>Grand Total</th><td class="text-end"><span t-field="o.acme_advance_total"/></td></tr>
+                    </tbody>
+                </table>
+                <p><strong>Total in Words:</strong> <span t-out="o._advance_total_in_words()"/></p>
+                <p><strong>Special Remarks:</strong> <span t-field="o.acme_remarks"/></p>
+                <p><strong>Payable To:</strong> <span t-field="o.acme_beneficiary"/><br/>
+                    <strong>Bank:</strong> <span t-field="o.acme_bank_id"/><br/>
+                    <strong>Account:</strong> <span t-field="o.acme_account_number"/><br/>
+                    <strong>Branch:</strong> <span t-field="o.acme_branch"/><br/>
+                    <strong>City:</strong> <span t-field="o.acme_city"/></p>
+                <table class="table table-sm">
+                    <thead><tr><th>Prepared By / Date</th><th>Approved By / Date</th><th>Authorized By / Date</th></tr></thead>
+                    <tbody><tr>
+                        <td><span t-field="o.request_owner_id"/> <span t-field="o.create_date" t-options="{'widget': 'date'}"/></td>
+                        <td><span t-field="o.acme_advance_approved_by"/> <span t-field="o.acme_advance_approved_at" t-options="{'widget': 'date'}"/></td>
+                        <td><span t-field="o.acme_advance_authorized_by"/> <span t-field="o.acme_advance_authorized_at" t-options="{'widget': 'date'}"/></td>
+                    </tr></tbody>
+                </table>
+            </t>
+            <t t-else="">
+            <h2>Request for Performance Bond</h2>
+            <p><strong>Request:</strong> <span t-field="o.name"/> | <strong>Status:</strong> <span t-field="o.request_status"/></p>
+            <t t-if="o.acme_kind == 'bond'">
+                <p><strong>To:</strong> <span t-field="o.acme_addressee"/></p>
+                <p t-if="o.acme_addressee_address" style="white-space: pre-line"><span t-field="o.acme_addressee_address"/></p>
+                <p><strong>Customer:</strong> <span t-field="o.acme_project_id.partner_id"/></p>
+            </t>
+            <p t-else=""><strong>Customer:</strong> <span t-field="o.acme_project_id.partner_id"/></p>
+            <p><strong>Contract Name:</strong> <span t-field="o.acme_project_id.name"/><br/>
+                <strong>Contract Reference:</strong> <span t-field="o.acme_contract_reference"/></p>
+            <table class="table table-sm"><thead><tr><th>Description</th><th class="text-end">Amount Excluding Tax</th></tr></thead><tbody>
+                <tr><td><span t-field="o.category_id.name"/> for <span t-field="o.acme_project_id.name"/></td><td class="text-end"><span t-field="o.acme_amount"/></td></tr>
+            </tbody></table>
+            <p t-if="o.acme_kind == 'bond'">Requested performance bond: 10% of <span t-field="o.acme_project_id.acme_bond_basis"/>.</p>
+            <p><strong>Special Remarks:</strong> <span t-field="o.acme_remarks"/></p>
+            <p><strong>Payable To:</strong> <span t-field="o.acme_beneficiary"/><br/>
+                <strong>Bank:</strong> <span t-field="o.acme_bank_id"/><br/>
+                <strong>Account:</strong> <span t-field="o.acme_account_number"/><br/>
+                <strong>Branch:</strong> <span t-field="o.acme_branch"/><br/>
+                <strong>City:</strong> <span t-field="o.acme_city"/></p>
+            <p><strong>Prepared By:</strong> <span t-field="o.request_owner_id"/></p>
+            <table class="table table-sm"><thead><tr><th>Approver</th><th>Decision</th></tr></thead><tbody>
+                <tr t-foreach="o.approver_ids" t-as="a"><td><span t-field="a.user_id"/></td><td><span t-field="a.status"/></td></tr>
+            </tbody></table>
+            </t>
+        </div></t></t></t>
+    </template>
+    </odoo>

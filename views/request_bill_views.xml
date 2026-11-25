@@ -1,0 +1,107 @@
+<odoo>
+<record id="request_bill_form" model="ir.ui.view">
+ <field name="name">acme.project.request.bill.form</field><field name="model">acme.project.certificate</field><field name="priority">90</field>
+ <field name="arch" type="xml">
+  <form string="Request Bill" create="0" delete="0" duplicate="0">
+   <header>
+    <button name="action_acme_submit_bill" type="object" string="Submit to DM" invisible="not acme_ipc_is_pm or acme_bill_status != 'draft'"/>
+    <button name="action_acme_approve_bill" type="object" string="DM Approve" groups="acme_project_core.group_acme_dm" invisible="acme_bill_status != 'pending'"/>
+    <button name="action_acme_create_linked_ipc" type="object" string="Create / Request IPC" invisible="not acme_ipc_is_pm or acme_bill_status not in ('approved','linked')"/>
+    <field name="acme_bill_status" string="Bill Status" widget="statusbar"/>
+   </header>
+   <sheet>
+    <field name="acme_ipc_is_pm" invisible="1"/><h1><field name="name"/></h1>
+    <group><group>
+     <field name="project_id" readonly="1"/><field name="number" string="Round"/>
+     <field name="acme_site" string="Site" readonly="acme_bill_status == 'linked'"/><field name="acme_period_start" string="Period Start" readonly="acme_bill_status == 'linked'"/><field name="acme_period_end" string="Period End" readonly="acme_bill_status == 'linked'"/>
+    </group><group>
+     <field name="acme_bill_pm_id" string="Bill PM"/><field name="acme_bill_submitted_at" string="Bill Submitted At"/><field name="acme_bill_dm_id" string="Bill DM"/><field name="acme_bill_approved_at" string="Bill Approved At"/>
+     <field name="signed_takeoff_filename" invisible="1"/><field name="signed_takeoff" filename="signed_takeoff_filename" readonly="acme_bill_status == 'linked'"/>
+     <field name="acme_round_evidence_ids" string="Round Evidence" widget="many2many_binary" readonly="acme_bill_status == 'linked'"/>
+    </group></group>
+    <notebook>
+     <page name="boq" string="BOQ">
+      <field name="line_ids" readonly="acme_bill_status != 'draft' or not acme_ipc_is_pm">
+       <list editable="bottom" create="0" delete="0">
+        <field name="currency_id" column_invisible="True"/>
+        <field name="name" string="Description / Product" readonly="1"/>
+        <field name="unit" string="UoM" readonly="1"/>
+        <field name="contract_quantity" string="Contract Qty" readonly="1"/>
+        <field name="unit_rate" string="Unit Rate" readonly="1"/>
+        <field name="acme_summary_contract" string="Contract Amount" readonly="1"/>
+        <field name="previous_quantity" string="Previous Executed Qty" readonly="1"/>
+        <field name="acme_site_quantity" string="Current Executed Qty"/>
+        <field name="acme_bill_to_date_qty" string="To-Date Executed Qty" readonly="1"/>
+        <field name="acme_bill_current_amount" string="Current Executed Amount" readonly="1"/>
+        <field name="acme_bill_to_date_amount" string="To-Date Executed Amount" readonly="1"/>
+       </list>
+      </field>
+     </page>
+     <page name="evidence" string="Line Evidence">
+      <field name="acme_bill_evidence_line_ids" readonly="acme_bill_status == 'linked'">
+       <list editable="bottom" create="0" delete="0">
+        <field name="name" string="Description / Product" readonly="1"/>
+        <field name="acme_delivery_move_id" string="Customer Delivery"/>
+        <field name="acme_accepted_quantity" string="Accepted Qty"/>
+        <field name="acme_client_acceptance" string="Client Acceptance" widget="binary"/>
+        <field name="acme_delivery_note" string="Delivery Note" widget="binary"/>
+        <field name="acme_grn" string="GRN" widget="binary" optional="hide"/>
+        <field name="acme_storekeeper_certificate" string="Storekeeper Certificate" widget="binary" optional="hide"/>
+        <field name="acme_line_takeoff" string="Take-off Evidence" widget="binary" optional="hide"/>
+        <field name="acme_inspection_evidence" string="Inspection Evidence" widget="binary" optional="hide"/>
+        <field name="acme_billing_milestone_id" string="Reached Milestone" optional="hide"/>
+       </list>
+      </field>
+     </page>
+    </notebook>
+   </sheet><chatter/>
+  </form>
+ </field>
+</record>
+<record id="financial_ipc_bill_form" model="ir.ui.view">
+ <field name="name">acme.project.certificate.source.bill</field><field name="model">acme.project.certificate</field><field name="inherit_id" ref="progress_certificate_form"/>
+ <field name="arch" type="xml">
+  <field name="project_id" position="after"><field name="acme_source_bill_id" readonly="1" invisible="not acme_source_bill_id" context="{'form_view_ref': 'acme_project_approvals.request_bill_form'}"/></field>
+  <xpath expr="//header/button[@name='action_load_boq']" position="attributes"><attribute name="invisible" add="acme_source_bill_id" separator=" or "/></xpath>
+  <xpath expr="//header/button[@name='action_refresh_boq']" position="attributes"><attribute name="invisible" add="acme_source_bill_id" separator=" or "/></xpath>
+  <xpath expr="//header/button[@name='action_acme_verify_ipc_evidence']" position="attributes"><attribute name="invisible" add="acme_source_bill_id" separator=" or "/></xpath>
+  <xpath expr="//header/button[@name='action_load_executed_boq']" position="attributes"><attribute name="invisible" add="acme_certificate_type == 'progress'" separator=" or "/></xpath>
+  <xpath expr="//header/button[@name='action_acme_pc_submit']" position="attributes">
+   <attribute name="invisible" add="acme_source_bill_id" separator=" or "/>
+  </xpath>
+  <xpath expr="//header/button[@name='action_acme_pc_submit']" position="after">
+   <button name="action_acme_pc_submit" type="object" string="Submit for Authorization"
+           invisible="not acme_source_bill_id or state != 'draft' or not acme_ipc_is_pm or not acme_pc_invoice_ids"/>
+   <button name="action_acme_return_to_request_bill" type="object" string="Return to Request Bill"
+           invisible="not acme_source_bill_id or state != 'draft' or not acme_ipc_is_pm"/>
+  </xpath>
+  <xpath expr="//field[@name='line_ids']/list/field[@name='previous_quantity']" position="attributes">
+   <attribute name="string">Previous Executed Qty</attribute>
+  </xpath>
+  <xpath expr="//field[@name='line_ids']/list/field[@name='cumulative_quantity']" position="attributes">
+   <attribute name="string">To Date Executed Qty</attribute>
+  </xpath>
+  <xpath expr="//field[@name='line_ids']" position="before">
+   <separator string="Summary Sheet" invisible="acme_certificate_type != 'progress'"/>
+   <field name="acme_ipc_summary_html" nolabel="1" readonly="1" invisible="acme_certificate_type != 'progress'"/>
+   <field name="acme_ipc_summary_line_ids" nolabel="1" invisible="not acme_source_bill_id"
+          readonly="state != 'draft' or not acme_ipc_is_pm">
+    <list editable="bottom" create="0" delete="0">
+     <field name="currency_id" column_invisible="True"/>
+     <field name="reference" readonly="1"/>
+     <field name="name" readonly="1"/>
+     <field name="acme_summary_contract" readonly="1"/>
+     <field name="acme_summary_previous"/>
+     <field name="acme_summary_current"/>
+     <field name="acme_summary_to_date" readonly="1"/>
+     <field name="acme_summary_prior_reason"/>
+     <field name="acme_summary_prior_evidence" widget="binary"/>
+     <field name="acme_ipc_adjustment_reason"/>
+    </list>
+   </field>
+   <separator string="Detailed BOQ" invisible="acme_certificate_type != 'progress'"/>
+  </xpath>
+  <xpath expr="//field[@name='line_ids']/list/field[@name='quantity']" position="after"><field name="acme_ipc_adjustment_reason" column_invisible="not parent.acme_source_bill_id"/></xpath>
+ </field>
+</record>
+</odoo>

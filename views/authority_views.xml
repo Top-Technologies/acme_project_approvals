@@ -1,0 +1,109 @@
+<odoo>
+    <record id="view_acme_approval_authority_list" model="ir.ui.view">
+        <field name="name">acme.approval.authority.list</field>
+        <field name="model">acme.approval.authority</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="company_id"/>
+                <field name="request_type"/>
+                <field name="currency_id"/>
+                <field name="amount_from"/>
+                <field name="amount_to" string="Amount To"/>
+                <field name="approver_position" string="Approver"/>
+                <field name="authorizer_position" string="Authorizer"/>
+                <field name="effective_from" optional="hide"/>
+                <field name="effective_to" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_acme_approval_authority_form" model="ir.ui.view">
+        <field name="name">acme.approval.authority.form</field>
+        <field name="model">acme.approval.authority</field>
+        <field name="arch" type="xml">
+            <form string="Approval Authority">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="company_id" domain="[('id', 'in', context.get('allowed_company_ids', []))]"/>
+                            <field name="request_type"/>
+                            <field name="currency_id"/>
+                            <field name="amount_from"/>
+                            <field name="amount_to" string="Amount To"
+                                   help="Leave empty for no ceiling. The request type and role determine whether the upper endpoint is included."/>
+                        </group>
+                        <group>
+                            <field name="approver_position" string="Approver"/>
+                            <field name="authorizer_position" string="Authorizer"/>
+                            <field name="effective_from"/>
+                            <field name="effective_to"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_acme_approval_authority" model="ir.actions.act_window">
+        <field name="name">Approval Authority</field>
+        <field name="res_model">acme.approval.authority</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('company_id', 'in', allowed_company_ids)]</field>
+        <field name="group_ids" eval="[(4, ref('approvals.group_approval_manager'))]"/>
+    </record>
+
+    <record id="view_acme_approval_position_assignment_list" model="ir.ui.view">
+        <field name="name">acme.approval.position.assignment.list</field>
+        <field name="model">acme.approval.position.assignment</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="company_id"/>
+                <field name="position"/>
+                <field name="user_id" string="Assigned User"/>
+                <field name="effective_from" optional="hide"/>
+                <field name="effective_to" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_acme_approval_position_assignment_form" model="ir.ui.view">
+        <field name="name">acme.approval.position.assignment.form</field>
+        <field name="model">acme.approval.position.assignment</field>
+        <field name="arch" type="xml">
+            <form string="Position Assignment">
+                <sheet>
+                    <group>
+                        <field name="company_id" domain="[('id', 'in', context.get('allowed_company_ids', []))]"/>
+                        <field name="position"/>
+                        <field name="user_id" string="Assigned User" domain="[('company_ids', 'in', [company_id])]"/>
+                        <field name="effective_from"/>
+                        <field name="effective_to"/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_acme_approval_position_assignments" model="ir.actions.act_window">
+        <field name="name">Position Assignments</field>
+        <field name="res_model">acme.approval.position.assignment</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('company_id', 'in', allowed_company_ids)]</field>
+        <field name="group_ids" eval="[(4, ref('approvals.group_approval_manager'))]"/>
+    </record>
+
+    <menuitem id="menu_acme_approval_authority"
+              parent="approvals.approvals_menu_config"
+              action="action_acme_approval_authority"
+              groups="approvals.group_approval_manager"
+              sequence="10"/>
+    <menuitem id="menu_acme_approval_position_assignments"
+              parent="approvals.approvals_menu_config"
+              action="action_acme_approval_position_assignments"
+              groups="approvals.group_approval_manager"
+              sequence="15"/>
+</odoo>
