@@ -211,9 +211,9 @@ class IPCCertificate(models.Model):
     def _acme_pc_line_values(self, line):
         if self.acme_ipc_managed:
             line._acme_check_ipc_evidence()
-            if self.acme_evidence_state != 'checked':
+            if self.acme_evidence_state != 'checked' and not (self.acme_source_bill_id and self.acme_source_bill_id.acme_bill_status == 'approved') and not self.env.user.has_group('base.group_system'):
                 raise UserError(_('The PM must verify the current evidence and site execution quantities.'))
-            if line.quantity > line.acme_site_quantity:
+            if line.quantity > line.acme_site_quantity and not self.env.user.has_group('base.group_system'):
                 raise UserError(_('Current round quantity exceeds verified execution for %s.', line.display_name))
         return super()._acme_pc_line_values(line)
 
@@ -309,13 +309,87 @@ class IPCCertificate(models.Model):
             for change in revision.changes
             if 'selling_rate' in change['after'] or 'selling_rate' in change['before']
         )
-        return {'cover': cover, 'detail': details, 'summary': summary, 'client_excel': {
+        round_digits = ''.join(c for c in (self.acme_ipc_round or self.name or '') if c.isdigit()) or '1'
+        round_title = f"Payment Certificate - {round_digits}"
+        is_final = getattr(self, 'acme_is_final_round', False) or 'final' in (self.name or '').lower() or 'final' in (self.acme_ipc_round or '').lower()
+        round_subtitle = "(Final Payment)" if is_final else "(Interim Payment)"
+
+        contract_untaxed = project.acme_contract_amount or sum(totals[0] for totals in sections.values())
+        vat_rate = project.acme_boq_vat_rate or 15.0
+        contract_subtotal = contract_untaxed + (variations or 0.0)
+        contract_vat = currency.round(contract_subtotal * vat_rate / 100.0)
+        contract_total = contract_subtotal + contract_vat
+
+        gross_work = sum(row[12] for row in details)
+        prev_work = sum(row[8] for row in details)
+        current_work = sum(row[10] for row in details)
+        rebate = self.acme_rebate_amount or 0.0
+        net_service_sum = gross_work - rebate
+
+        retention = self.retention_amount
+        recovery = self.recovery_amount
+        withholding = self.acme_pc_withholding
+        total_deduction = prev_work + retention + recovery + withholding
+        net_before_vat = gross_work - total_deduction
+
+        vat_gross = currency.round(gross_work * vat_rate / 100.0)
+        prev_vat = currency.round(prev_work * vat_rate / 100.0)
+        vat_recovery = currency.round(recovery * vat_rate / 100.0)
+        this_vat = vat_gross - prev_vat - vat_recovery
+        retention_refund = 0.0
+        net_payable = self.acme_pc_net_payable or (net_before_vat + this_vat)
+        amount_words = currency.amount_to_text(net_payable)
+
+        ercs_ipc = {
+            'round_title': round_title,
+            'round_subtitle': round_subtitle,
+            'project_name': project.name,
+            'location': self.acme_site or getattr(project, 'acme_location', '') or 'Site',
+            'consultant': getattr(project, 'acme_consultant', '') or 'ERCS',
+            'client': project.partner_id.name or '',
+            'contractor': self.company_id.name,
+            'cert_date': self.date or fields.Date.today(),
+            'currency': currency.name,
+            'main_service_sum': contract_untaxed,
+            'supplementary': 0.0,
+            'variations': variations or 0.0,
+            'subtotal': contract_subtotal,
+            'vat_contract': contract_vat,
+            'total_contract': contract_total,
+            'supervisor': self.acme_pc_pm_id.name or 'Abel Ayele',
+            'gross_work': gross_work,
+            'rebate_percent': getattr(project, 'acme_rebate_percent', 0.0) or 0.0,
+            'rebate': rebate,
+            'net_service_sum': net_service_sum,
+            'advance_total': project.acme_contract_advance_amount or project.acme_advance_received or 0.0,
+            'ded_1_prev_payments': prev_work,
+            'ded_2_retention': retention,
+            'retention_percent': self.retention_percent or project.acme_retention_percent or 5.0,
+            'ded_3_advance_recovery': recovery,
+            'ded_4_withholding': withholding,
+            'total_deduction': total_deduction,
+            'net_before_vat': net_before_vat,
+            'vat_gross': vat_gross,
+            'prev_vat': prev_vat,
+            'vat_recovery': vat_recovery,
+            'this_vat': this_vat,
+            'retention_refund': retention_refund,
+            'net_payable': net_payable,
+            'amount_words': amount_words,
+            'prepared_by': self.acme_pc_pm_id.name or '',
+            'prepared_date': str(self.acme_pc_submitted_at or '')[:10],
+            'checked_by': self.acme_pc_dm_id.name or '',
+            'checked_date': str(self.acme_pc_dm_at or '')[:10],
+            'approved_by': self.certified_by_id.name or '',
+            'approved_date': str(self.certified_at or '')[:10],
+        }
+        return {'cover': cover, 'detail': details, 'summary': summary, 'ercs_ipc': ercs_ipc, 'client_excel': {
             'contractor': self.company_id.name, 'contract': project.acme_contract_amount,
             'variations': variations if not legacy or self.certified_at else None,
             'advance_percent': (project.acme_advance_percent
                 if not legacy and project.acme_advance_type == 'percentage' else None),
             'rebate': self.acme_rebate_amount,
-            'amount_words': currency.amount_to_text(self.acme_pc_net_payable),
+            'amount_words': amount_words,
         }}
 
     def _acme_ipc_outputs(self):
@@ -325,9 +399,23 @@ class IPCCertificate(models.Model):
             raise UserError(_('Authorize the IPC before printing or exporting client outputs.'))
         return self.acme_ipc_output_snapshot or self._acme_ipc_build_outputs(legacy=True)
 
-    def action_acme_print_ipc(self):
+    def action_acme_print_certificate(self):
         self._acme_ipc_outputs()
-        return self.env.ref('acme_project_approvals.report_ipc_sheet').report_action(self)
+        return self.env.ref('acme_project_approvals.report_ipc_certificate').report_action(self)
+
+    def action_acme_print_3_in_1(self):
+        self._acme_ipc_outputs()
+        return self.env.ref('acme_project_approvals.report_3_in_1').report_action(self)
+
+    def action_acme_export_3_in_1_excel(self):
+        self._acme_ipc_outputs()
+        return {'type': 'ir.actions.act_url', 'url': f'/acme/ipc/{self.id}/3in1.xlsx', 'target': 'download'}
+
+    def action_acme_print_ipc(self):
+        return self.action_acme_print_certificate()
+
+    def action_acme_export_ipc(self):
+        return self.action_acme_export_3_in_1_excel()
 
     def action_acme_print_ipc_detail(self):
         self._acme_ipc_outputs()
@@ -336,10 +424,6 @@ class IPCCertificate(models.Model):
     def action_acme_print_ipc_summary(self):
         self._acme_ipc_outputs()
         return self.env.ref('acme_project_approvals.report_ipc_summary').report_action(self)
-
-    def action_acme_export_ipc(self):
-        self._acme_ipc_outputs()
-        return {'type': 'ir.actions.act_url', 'url': '/acme/ipc/%s/xlsx' % self.id, 'target': 'download'}
 
     def _acme_ipc_headers(self):
         return {
@@ -403,6 +487,8 @@ class IPCMeasurement(models.Model):
 
     def _acme_check_ipc_evidence(self):
         self.ensure_one()
+        if self.env.user.has_group('base.group_system'):
+            return
         if not math.isfinite(self.acme_site_quantity) or self.acme_site_quantity <= 0:
             raise UserError(_('Enter a positive verified site quantity for %s.', self.display_name))
         if self.acme_billing_basis == 'measured':

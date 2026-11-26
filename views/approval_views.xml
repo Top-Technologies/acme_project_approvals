@@ -34,6 +34,8 @@
                         invisible="acme_kind != 'advance' or request_status != 'approved'"
                         groups="project.group_project_user"/>
 
+                <button name="action_acme_print_advance_requisition" type="object" string="Print Advance Requisition" class="btn-primary"
+                        invisible="acme_kind != 'advance' or request_status != 'approved'"/>
                 <button name="action_acme_print_request" type="object" string="Print Project Request" invisible="acme_kind not in ['bond', 'advance', 'guarantee']"/>
             </xpath>
             <xpath expr="//sheet" position="inside">

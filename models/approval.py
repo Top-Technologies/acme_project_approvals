@@ -186,8 +186,14 @@ class ApprovalRequest(models.Model):
     def action_acme_create_advance_invoice(self):
         return self._acme_get_advance_certificate()._acme_load_advance_invoice()
 
+    def action_acme_print_advance_requisition(self):
+        self.ensure_one()
+        return self.env.ref('acme_project_approvals.report_advance_payment_requisition').report_action(self)
+
     def action_acme_print_request(self):
         self.ensure_one()
+        if self.acme_kind == 'advance':
+            return self.action_acme_print_advance_requisition()
         if not self.acme_kind:
             raise UserError(_('This report is for project bond, advance, and guarantee requests.'))
         return self.env.ref('acme_project_approvals.report_project_request').report_action(self)

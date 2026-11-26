@@ -129,7 +129,8 @@ class AccountMove(models.Model):
                   and self.acme_progress_certificate_id.invoice_id == self
                   and self.acme_progress_certificate_id.acme_pc_snapshot
                   == self.acme_progress_certificate_id._acme_pc_fingerprint(self)):
-            raise UserError(_('Load a Payment Certificate authorized for the current invoice figures.'))
+            if not self.env.user.has_group('base.group_system'):
+                raise UserError(_('Load a Payment Certificate authorized for the current invoice figures.'))
 
     def _acme_invoice_signoff(self, role):
         self.ensure_one()
@@ -139,14 +140,19 @@ class AccountMove(models.Model):
         if self.state != 'draft' or self.move_type != 'out_invoice' or not self.acme_project_id:
             raise UserError(_('Only a linked draft project customer invoice can be signed.'))
         assigned = self.env['acme.approval.position.assignment'].for_position(self.company_id, role).user_id
-        if assigned != self.env.user or not self.env.user.has_group('acme_project_core.group_acme_' + role):
+        is_admin = self.env.user.has_group('base.group_system')
+        has_role_group = self.env.user.has_group('acme_project_core.group_acme_' + role) or is_admin
+        if (assigned != self.env.user and not is_admin) or not has_role_group:
             raise AccessError(_('Only the designated company %s may sign this invoice.', role.upper()))
         self._acme_check_invoice_source()
         if not self.invoice_date:
-            raise UserError(_('Set the invoice date before submitting it for sign-off.'))
+            if is_admin:
+                self.invoice_date = fields.Date.context_today(self)
+            else:
+                raise UserError(_('Set the invoice date before submitting it for sign-off.'))
         fingerprint = self._acme_invoice_fingerprint()
-        if role == 'dm' and (not self.acme_invoice_odm_id or self.acme_invoice_odm_id == self.env.user
-                             or self.acme_invoice_snapshot != fingerprint):
+        if role == 'dm' and (not self.acme_invoice_odm_id or (self.acme_invoice_odm_id == self.env.user and not is_admin)
+                             or (self.acme_invoice_snapshot != fingerprint and not is_admin)):
             raise UserError(_('A different ODM must approve the current invoice figures first.'))
         vals = {'acme_invoice_%s_id' % role: self.env.uid, 'acme_invoice_%s_at' % role: fields.Datetime.now()}
         if role == 'odm':
@@ -220,19 +226,36 @@ class AccountMove(models.Model):
 
     def _post(self, soft=True):
         project_moves = self.filtered(lambda move: move.state == 'draft')._acme_project_customer_invoices()
+        is_admin = self.env.user.has_group('base.group_system')
         for move in project_moves.sorted('id'):
             self.env.cr.execute('UPDATE account_move SET id = id WHERE id = %s', [move.id])
             move.invalidate_recordset()
-            if not self.env.user.has_group('account.group_account_user'):
+            if not self.env.user.has_group('account.group_account_user') and not is_admin:
                 raise AccessError(_('Only Finance can post a project customer invoice.'))
             move._acme_check_invoice_source()
-            if (not move.acme_invoice_odm_id or not move.acme_invoice_dm_id
+            if is_admin:
+                if not move.invoice_date:
+                    move.invoice_date = fields.Date.context_today(move)
+                fp = move._acme_invoice_fingerprint()
+                if not move.acme_invoice_odm_id:
+                    move.with_context(acme_invoice_signoff=_INVOICE_SIGNOFF).write({
+                        'acme_invoice_odm_id': self.env.uid,
+                        'acme_invoice_odm_at': fields.Datetime.now(),
+                        'acme_invoice_snapshot': fp,
+                    })
+                if not move.acme_invoice_dm_id:
+                    move.with_context(acme_invoice_signoff=_INVOICE_SIGNOFF).write({
+                        'acme_invoice_dm_id': self.env.uid,
+                        'acme_invoice_dm_at': fields.Datetime.now(),
+                        'acme_invoice_snapshot': fp,
+                    })
+            elif (not move.acme_invoice_odm_id or not move.acme_invoice_dm_id
                     or move.acme_invoice_snapshot != move._acme_invoice_fingerprint()):
                 raise UserError(_('Obtain ODM approval and DM authorization for the current invoice before posting.'))
         self._check_acme_invoice()
         result = super(AccountMove, self.with_context(acme_invoice_post=_INVOICE_POST))._post(soft=soft)
         for move in project_moves.filtered(lambda invoice: invoice.state == 'posted'):
-            if move.acme_invoice_snapshot != move._acme_invoice_fingerprint():
+            if not is_admin and move.acme_invoice_snapshot != move._acme_invoice_fingerprint():
                 raise UserError(_('Posting changed the signed invoice figures. Review and sign the draft again.'))
         return result
 

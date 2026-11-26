@@ -1,6 +1,6 @@
 {
     'name': 'ACME Project Approvals',
-    'version': '19.0.2.1.5',
+    'version': '19.0.2.1.6',
     'license': 'LGPL-3',
     'depends': [
         'acme_project_core',

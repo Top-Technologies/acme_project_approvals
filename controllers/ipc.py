@@ -21,7 +21,7 @@ def _xlsx_response(output, filename):
 
 class IPCExport(http.Controller):
 
-    @http.route('/acme/ipc/<int:certificate_id>/xlsx', type='http', auth='user', methods=['GET'])
+    @http.route(['/acme/ipc/<int:certificate_id>/xlsx', '/acme/ipc/<int:certificate_id>/3in1.xlsx'], type='http', auth='user', methods=['GET'])
     def download(self, certificate_id):
         certificate = request.env['acme.project.certificate'].browse(certificate_id).exists()
         if not certificate:
@@ -31,7 +31,10 @@ class IPCExport(http.Controller):
         ipc = certificate._acme_ipc_outputs()
         with xlsxwriter.Workbook(output, _XLSX_OPTIONS) as book:
             write_client_workbook(book, ipc)
-        return _xlsx_response(output, 'IPC-%s.xlsx' % certificate.number)
+        project_code = certificate.project_id.acme_project_sequence or certificate.project_id.id
+        cert_num = certificate.number or certificate.id
+        filename = f'3-in-1-{project_code}-{cert_num}.xlsx'
+        return _xlsx_response(output, filename)
 
 
 class ProjectBOQExport(http.Controller):

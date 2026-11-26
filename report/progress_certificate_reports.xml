@@ -1,4 +1,509 @@
 <odoo>
+    <!-- Paperformat for IPC Portrait -->
+    <record id="paperformat_ercs_ipc" model="report.paperformat">
+        <field name="name">ERCS IPC Certificate Paperformat</field>
+        <field name="format">A4</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">15</field>
+        <field name="margin_bottom">15</field>
+        <field name="margin_left">10</field>
+        <field name="margin_right">10</field>
+        <field name="header_spacing">10</field>
+    </record>
+
+    <!-- Paperformat for Detailed BOQ Landscape -->
+    <record id="paperformat_ipc_detail" model="report.paperformat">
+        <field name="name">IPC Detailed BOQ</field>
+        <field name="format">A4</field>
+        <field name="orientation">Landscape</field>
+        <field name="margin_top">15</field>
+        <field name="margin_bottom">15</field>
+        <field name="margin_left">8</field>
+        <field name="margin_right">8</field>
+        <field name="header_spacing">10</field>
+    </record>
+
+    <!-- Individual IPC Certificate Report Action -->
+    <record id="report_ipc_certificate" model="ir.actions.report">
+        <field name="name">IPC Payment Certificate</field>
+        <field name="model">acme.project.certificate</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">acme_project_approvals.report_ipc_certificate_template</field>
+        <field name="paperformat_id" ref="paperformat_ercs_ipc"/>
+        <field name="print_report_name">'IPC-%s' % (object.number or object.name)</field>
+    </record>
+
+    <!-- Combined 3-in-1 Report Action -->
+    <record id="report_3_in_1" model="ir.actions.report">
+        <field name="name">3-in-1 Combined Report</field>
+        <field name="model">acme.project.certificate</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">acme_project_approvals.report_3_in_1_template</field>
+        <field name="print_report_name">'3-in-1-%s-%s' % (object.project_id.acme_project_sequence or object.project_id.id, object.number or object.id)</field>
+    </record>
+
+    <!-- Content 1: ERCS Payment Certificate -->
+    <template id="ercs_ipc_document_content">
+        <t t-set="output" t-value="o._acme_ipc_outputs()"/>
+        <t t-set="ercs" t-value="output.get('ercs_ipc', {})"/>
+        <t t-set="curr" t-value="o.currency_id"/>
+        <div class="ercs-ipc-page" style="font-family: Arial, sans-serif; font-size: 8.5pt; color: #111;">
+            <!-- Title Header -->
+            <div class="text-center mb-3">
+                <h4 style="font-weight: bold; margin-bottom: 2px; text-transform: uppercase;">
+                    <span t-out="ercs.get('round_title', 'Payment Certificate - 1')"/>
+                </h4>
+                <h6 style="font-weight: bold; color: #333; margin-bottom: 0;">
+                    <span t-out="ercs.get('round_subtitle', '(Interim Payment)')"/>
+                </h6>
+            </div>
+
+            <!-- Project Details Header Table -->
+            <table class="table table-sm table-bordered mb-2" style="font-size: 8pt; border: 1px solid #444;">
+                <tbody>
+                    <tr>
+                        <td style="width: 15%; font-weight: bold; background: #f8f9fa;">PROJECT:</td>
+                        <td style="width: 45%;"><span t-out="ercs.get('project_name', '')"/></td>
+                        <td style="width: 15%; font-weight: bold; background: #f8f9fa;">DATE:</td>
+                        <td style="width: 25%;"><span t-out="ercs.get('cert_date', '')"/></td>
+                    </tr>
+                    <tr>
+                        <td style="font-weight: bold; background: #f8f9fa;">LOCATION:</td>
+                        <td><span t-out="ercs.get('location', '')"/></td>
+                        <td style="font-weight: bold; background: #f8f9fa;">CURRENCY:</td>
+                        <td><span t-out="ercs.get('currency', 'USD')"/></td>
+                    </tr>
+                    <tr>
+                        <td style="font-weight: bold; background: #f8f9fa;">CLIENT:</td>
+                        <td><span t-out="ercs.get('client', '')"/></td>
+                        <td style="font-weight: bold; background: #f8f9fa;">CONSULTANT:</td>
+                        <td><span t-out="ercs.get('consultant', 'ERCS')"/></td>
+                    </tr>
+                    <tr>
+                        <td style="font-weight: bold; background: #f8f9fa;">CONTRACTOR:</td>
+                        <td colspan="3"><span t-out="ercs.get('contractor', '')"/></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Main Layout: Left (Contract Values) & Right (Deductions Table) -->
+            <div class="row">
+                <!-- Left Box: Contract Summary -->
+                <div class="col-5">
+                    <table class="table table-sm table-bordered" style="font-size: 8pt; border: 1px solid #444;">
+                        <thead style="background: #e9ecef; text-align: center; font-weight: bold;">
+                            <tr><th colspan="2">CONTRACT SUM</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Main Service Sum</td>
+                                <td class="text-end"><span t-out="ercs.get('main_service_sum', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                            <tr>
+                                <td>Supplementary Work</td>
+                                <td class="text-end"><span t-out="ercs.get('supplementary', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                            <tr>
+                                <td>Variations / Addendum</td>
+                                <td class="text-end"><span t-out="ercs.get('variations', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                            <tr style="font-weight: bold; background: #f8f9fa;">
+                                <td>Sub-Total Contract</td>
+                                <td class="text-end"><span t-out="ercs.get('subtotal', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                            <tr>
+                                <td>VAT on Contract</td>
+                                <td class="text-end"><span t-out="ercs.get('vat_contract', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                            <tr style="font-weight: bold; background: #e9ecef;">
+                                <td>Total Contract Value</td>
+                                <td class="text-end"><span t-out="ercs.get('total_contract', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="p-2 mb-2" style="border: 1px solid #444; font-size: 7.5pt; background: #fbfbfb;">
+                        <p class="mb-1"><strong>Advance Payment Total:</strong> <span t-out="ercs.get('advance_total', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></p>
+                        <p class="mb-1"><strong>Retention Percentage:</strong> <span t-out="ercs.get('retention_percent', 0.0)"/>%</p>
+                        <p class="mb-0"><strong>Rebate Percentage:</strong> <span t-out="ercs.get('rebate_percent', 0.0)"/>%</p>
+                    </div>
+                </div>
+
+                <!-- Right Box: Executed Work and Deductions (A through J) -->
+                <div class="col-7">
+                    <table class="table table-sm table-bordered" style="font-size: 8pt; border: 1px solid #444;">
+                        <thead style="background: #e9ecef; text-align: center; font-weight: bold;">
+                            <tr>
+                                <th style="width: 10%;">Item</th>
+                                <th style="width: 58%;">Description</th>
+                                <th style="width: 32%;" class="text-end">Amount (<span t-out="curr.name"/>)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="font-weight: bold; background: #f8f9fa;">
+                                <td class="text-center">A</td>
+                                <td>Total Executed Service Sum (To Date)</td>
+                                <td class="text-end"><span t-out="ercs.get('gross_work', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                            <t t-if="ercs.get('rebate', 0.0)">
+                                <tr>
+                                    <td class="text-center">-</td>
+                                    <td>Less Rebate / Discount</td>
+                                    <td class="text-end"><span t-out="ercs.get('rebate', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                                </tr>
+                                <tr style="font-weight: bold;">
+                                    <td class="text-center">-</td>
+                                    <td>Net Service Sum</td>
+                                    <td class="text-end"><span t-out="ercs.get('net_service_sum', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                                </tr>
+                            </t>
+                            <tr>
+                                <td class="text-center">1</td>
+                                <td>Previous Payments (Service Sum)</td>
+                                <td class="text-end"><span t-out="ercs.get('ded_1_prev_payments', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                            <tr>
+                                <td class="text-center">2</td>
+                                <td>Retention Deduction (<span t-out="ercs.get('retention_percent', 0.0)"/>%)</td>
+                                <td class="text-end"><span t-out="ercs.get('ded_2_retention', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                            <tr>
+                                <td class="text-center">3</td>
+                                <td>Advance Repayment</td>
+                                <td class="text-end"><span t-out="ercs.get('ded_3_advance_recovery', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                            <tr>
+                                <td class="text-center">4</td>
+                                <td>Penalty / Withholding</td>
+                                <td class="text-end"><span t-out="ercs.get('ded_4_withholding', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                            <tr style="font-weight: bold; background: #fff3cd;">
+                                <td class="text-center">B</td>
+                                <td>Total Deductions (1 + 2 + 3 + 4)</td>
+                                <td class="text-end"><span t-out="ercs.get('total_deduction', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                            <tr style="font-weight: bold; background: #f8f9fa;">
+                                <td class="text-center">C</td>
+                                <td>Net (A - B)</td>
+                                <td class="text-end"><span t-out="ercs.get('net_before_vat', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                            <tr>
+                                <td class="text-center">D</td>
+                                <td>VAT (15% of A)</td>
+                                <td class="text-end"><span t-out="ercs.get('vat_gross', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                            <tr>
+                                <td class="text-center">E</td>
+                                <td>Previously Paid VAT</td>
+                                <td class="text-end"><span t-out="ercs.get('prev_vat', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                            <tr>
+                                <td class="text-center">F</td>
+                                <td>VAT on Advance Repayment</td>
+                                <td class="text-end"><span t-out="ercs.get('vat_recovery', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                            <tr>
+                                <td class="text-center">G</td>
+                                <td>VAT on Retention</td>
+                                <td class="text-end">0.00</td>
+                            </tr>
+                            <tr style="font-weight: bold;">
+                                <td class="text-center">H</td>
+                                <td>This VAT (D - E - F - G)</td>
+                                <td class="text-end"><span t-out="ercs.get('this_vat', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                            <tr t-if="ercs.get('retention_refund', 0.0)">
+                                <td class="text-center">I</td>
+                                <td>Retention Refund</td>
+                                <td class="text-end"><span t-out="ercs.get('retention_refund', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                            <tr style="font-weight: bold; background: #d4edda; font-size: 9pt;">
+                                <td class="text-center">J</td>
+                                <td>NET PAYABLE TO CONTRACTOR (C + H + I)</td>
+                                <td class="text-end"><strong><span t-out="ercs.get('net_payable', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Amount in words -->
+            <div class="p-2 mb-2" style="border: 1px solid #444; background: #fdfdfd; font-size: 8pt;">
+                <strong>NET PAYABLE IN WORDS:</strong> <span t-out="ercs.get('amount_words', '')"/>
+            </div>
+
+            <!-- Signatures Section -->
+            <table class="table table-bordered text-center mt-3" style="font-size: 7.5pt; border: 1px solid #444;">
+                <thead style="background: #e9ecef;">
+                    <tr>
+                        <th style="width: 25%;">PREPARED BY (PM)</th>
+                        <th style="width: 25%;">CHECKED BY (DM)</th>
+                        <th style="width: 25%;">SUPERVISING ENGINEER</th>
+                        <th style="width: 25%;">AUTHORIZED (DGM / GM)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="height: 55px;">
+                        <td style="vertical-align: bottom;">
+                            <p class="mb-1"><span t-out="ercs.get('prepared_by', '')"/></p>
+                            <small class="text-muted"><span t-out="ercs.get('prepared_date', '')"/></small>
+                        </td>
+                        <td style="vertical-align: bottom;">
+                            <p class="mb-1"><span t-out="ercs.get('checked_by', '')"/></p>
+                            <small class="text-muted"><span t-out="ercs.get('checked_date', '')"/></small>
+                        </td>
+                        <td style="vertical-align: bottom;">
+                            <p class="mb-1"><span t-out="ercs.get('supervisor', '')"/></p>
+                        </td>
+                        <td style="vertical-align: bottom;">
+                            <p class="mb-1"><span t-out="ercs.get('approved_by', '')"/></p>
+                            <small class="text-muted"><span t-out="ercs.get('approved_date', '')"/></small>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <!-- Content 2: VSF Grand Summary -->
+    <template id="vsf_summary_document_content">
+        <t t-set="output" t-value="o._acme_ipc_outputs()"/>
+        <t t-set="curr" t-value="o.currency_id"/>
+        <t t-set="client" t-value="output.get('client_excel', {})"/>
+        <div class="vsf-summary-page" style="font-family: Arial, sans-serif; font-size: 8.5pt; color: #111;">
+            <div class="text-center mb-3">
+                <h4 style="font-weight: bold; margin-bottom: 2px;">PAYMENT CERTIFICATE SUMMARY</h4>
+                <h6 style="font-weight: bold; color: #333; margin-bottom: 0;">VSF GRAND SUMMARY OF EXECUTED WORKS</h6>
+            </div>
+
+            <table class="table table-sm table-bordered mb-3" style="font-size: 8pt; border: 1px solid #444;">
+                <tbody>
+                    <tr>
+                        <td style="width: 15%; font-weight: bold; background: #f8f9fa;">Project Name:</td>
+                        <td style="width: 45%;"><span t-field="o.project_id.name"/></td>
+                        <td style="width: 15%; font-weight: bold; background: #f8f9fa;">Certificate No:</td>
+                        <td style="width: 25%;"><span t-field="o.name"/></td>
+                    </tr>
+                    <tr>
+                        <td style="font-weight: bold; background: #f8f9fa;">Client:</td>
+                        <td><span t-field="o.project_id.partner_id.name"/></td>
+                        <td style="font-weight: bold; background: #f8f9fa;">Billing Period:</td>
+                        <td><span t-field="o.acme_period_start"/> – <span t-field="o.acme_period_end"/></td>
+                    </tr>
+                    <tr>
+                        <td style="font-weight: bold; background: #f8f9fa;">Contractor:</td>
+                        <td><span t-out="client.get('contractor', o.company_id.name)"/></td>
+                        <td style="font-weight: bold; background: #f8f9fa;">Location / Site:</td>
+                        <td><span t-field="o.acme_site"/></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <table class="table table-sm table-bordered" style="font-size: 8pt; border: 1px solid #444;">
+                <thead style="background: #e9ecef; text-align: center; font-weight: bold;">
+                    <tr>
+                        <th style="width: 5%;">No.</th>
+                        <th style="width: 35%;">BOQ Section Description</th>
+                        <th style="width: 15%;" class="text-end">Contract Amount</th>
+                        <th style="width: 15%;" class="text-end">Previous Executed</th>
+                        <th style="width: 15%;" class="text-end">Current Executed</th>
+                        <th style="width: 15%;" class="text-end">To-Date Executed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <t t-set="sec_idx" t-value="1"/>
+                    <tr t-foreach="output['summary']" t-as="sec">
+                        <td class="text-center"><span t-out="sec_idx"/></td>
+                        <td><span t-out="sec[0]"/></td>
+                        <td class="text-end"><span t-out="sec[1]" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        <td class="text-end"><span t-out="sec[2]" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        <td class="text-end"><span t-out="sec[3]" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        <td class="text-end"><span t-out="sec[4]" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        <t t-set="sec_idx" t-value="sec_idx + 1"/>
+                    </tr>
+                    <tr style="font-weight: bold; background: #f8f9fa;">
+                        <td colspan="2" class="text-end">Total Executed Work</td>
+                        <td class="text-end"><span t-out="sum(s[1] for s in output['summary'])" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        <td class="text-end"><span t-out="sum(s[2] for s in output['summary'])" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        <td class="text-end"><span t-out="sum(s[3] for s in output['summary'])" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        <td class="text-end"><span t-out="sum(s[4] for s in output['summary'])" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                    </tr>
+                    <t t-if="client.get('rebate')">
+                        <tr>
+                            <td colspan="2" class="text-end">Rebate / Discount</td>
+                            <td class="text-end">-</td>
+                            <td class="text-end">-</td>
+                            <td class="text-end">-</td>
+                            <td class="text-end"><span t-out="client.get('rebate', 0.0)" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        </tr>
+                    </t>
+                    <tr style="font-weight: bold;">
+                        <td colspan="2" class="text-end">VAT (15%)</td>
+                        <td class="text-end"><span t-out="sum(s[1] for s in output['summary']) * 0.15" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        <td class="text-end"><span t-out="sum(s[2] for s in output['summary']) * 0.15" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        <td class="text-end"><span t-out="sum(s[3] for s in output['summary']) * 0.15" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        <td class="text-end"><span t-out="(sum(s[4] for s in output['summary']) - client.get('rebate', 0.0)) * 0.15" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                    </tr>
+                    <tr style="font-weight: bold; background: #e9ecef;">
+                        <td colspan="2" class="text-end">Grand Total (Incl. VAT)</td>
+                        <td class="text-end"><span t-out="sum(s[1] for s in output['summary']) * 1.15" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        <td class="text-end"><span t-out="sum(s[2] for s in output['summary']) * 1.15" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        <td class="text-end"><span t-out="sum(s[3] for s in output['summary']) * 1.15" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        <td class="text-end"><span t-out="(sum(s[4] for s in output['summary']) - client.get('rebate', 0.0)) * 1.15" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <table class="table table-bordered text-center mt-4" style="font-size: 7.5pt; border: 1px solid #444;">
+                <thead style="background: #e9ecef;">
+                    <tr>
+                        <th style="width: 33%;">CONTRACTOR REPRESENTATIVE</th>
+                        <th style="width: 33%;">CONSULTANT / RESIDENT ENGINEER</th>
+                        <th style="width: 34%;">EMPLOYER / CLIENT REPRESENTATIVE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="height: 60px;">
+                        <td style="vertical-align: bottom;"><p class="mb-1"><span t-field="o.acme_pc_pm_id.name"/></p></td>
+                        <td style="vertical-align: bottom;"><p class="mb-1"><span t-out="output.get('ercs_ipc', {}).get('supervisor', '')"/></p></td>
+                        <td style="vertical-align: bottom;"><p class="mb-1"><span t-field="o.certified_by_id.name"/></p></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <!-- Content 3: ERCS Genete Mariam BOQ Measurement of Executed Work -->
+    <template id="ercs_boq_document_content">
+        <t t-set="output" t-value="o._acme_ipc_outputs()"/>
+        <t t-set="curr" t-value="o.currency_id"/>
+        <t t-set="cover" t-value="output['cover']"/>
+        <div class="ercs-boq-page" style="font-family: Arial, sans-serif; font-size: 7.5pt; color: #111;">
+            <div class="row mb-2">
+                <div class="col-6">
+                    <p class="mb-1"><strong>PROJECT:</strong> <span t-out="cover[1][1]"/></p>
+                    <p class="mb-1"><strong>LOCATION:</strong> <span t-out="cover[5][1]"/></p>
+                </div>
+                <div class="col-6 text-end">
+                    <p class="mb-1"><strong>CLIENT:</strong> <span t-out="cover[4][1]"/></p>
+                    <p class="mb-1"><strong>ROUND:</strong> <span t-out="cover[0][1]"/></p>
+                </div>
+            </div>
+
+            <h5 class="text-center font-weight-bold mb-2">MEASUREMENT OF EXECUTED WORK</h5>
+
+            <table class="table table-bordered table-sm" style="font-size: 7pt; border: 1px solid #444;">
+                <thead style="background: #e9ecef; text-align: center; font-weight: bold; display: table-header-group;">
+                    <tr>
+                        <th rowspan="2" style="width: 4%;">Item</th>
+                        <th rowspan="2" style="width: 24%;">Description</th>
+                        <th rowspan="2" style="width: 4%;">Unit</th>
+                        <th colspan="5" style="width: 28%;">Quantity</th>
+                        <th rowspan="2" style="width: 8%;">Unit Rate</th>
+                        <th colspan="5" style="width: 32%;">Amount (<span t-out="curr.name"/>)</th>
+                    </tr>
+                    <tr>
+                        <th>Contract</th>
+                        <th>Previous</th>
+                        <th>Current</th>
+                        <th>To Date</th>
+                        <th>Remaining</th>
+                        <th>Contract</th>
+                        <th>Previous</th>
+                        <th>Current</th>
+                        <th>To Date</th>
+                        <th>Remaining</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <t t-foreach="output['summary']" t-as="section">
+                        <tr style="background: #e2e8f0; font-weight: bold;">
+                            <td colspan="15"><span t-out="section[0]"/></td>
+                        </tr>
+                        <t t-foreach="output['detail']" t-as="line">
+                            <tr t-if="line[0] == section[0]" style="page-break-inside: avoid;">
+                                <td class="text-center"><span t-out="line[1]"/></td>
+                                <td><span t-out="line[2]"/></td>
+                                <td class="text-center"><span t-out="line[3]"/></td>
+                                <td class="text-end"><span t-out="line[5]"/></td>
+                                <td class="text-end"><span t-out="line[7]"/></td>
+                                <td class="text-end"><span t-out="line[9]"/></td>
+                                <td class="text-end"><span t-out="line[11]"/></td>
+                                <td class="text-end"><span t-out="line[13]"/></td>
+                                <td class="text-end"><span t-out="line[4]" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                                <td class="text-end"><span t-out="line[6]" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                                <td class="text-end"><span t-out="line[8]" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                                <td class="text-end"><span t-out="line[10]" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                                <td class="text-end"><span t-out="line[12]" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                                <td class="text-end"><span t-out="line[14]" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            </tr>
+                        </t>
+                        <tr style="font-weight: bold; background: #f1f5f9;">
+                            <td colspan="9" class="text-end">Section Subtotal:</td>
+                            <td class="text-end"><span t-out="section[1]" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            <td class="text-end"><span t-out="section[2]" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            <td class="text-end"><span t-out="section[3]" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            <td class="text-end"><span t-out="section[4]" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                            <td class="text-end"><span t-out="section[1] - section[4]" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        </tr>
+                    </t>
+                    <tr style="font-weight: bold; background: #cbd5e1; font-size: 7.5pt;">
+                        <td colspan="9" class="text-end">GRAND TOTAL:</td>
+                        <td class="text-end"><span t-out="sum(s[1] for s in output['summary'])" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        <td class="text-end"><span t-out="sum(s[2] for s in output['summary'])" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        <td class="text-end"><span t-out="sum(s[3] for s in output['summary'])" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        <td class="text-end"><span t-out="sum(s[4] for s in output['summary'])" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                        <td class="text-end"><span t-out="sum(s[1] - s[4] for s in output['summary'])" t-options="{'widget': 'monetary', 'display_currency': curr}"/></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <!-- Standalone IPC Certificate Template -->
+    <template id="report_ipc_certificate_template">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <t t-call="acme_project_approvals.ercs_ipc_document_content"/>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <!-- Combined 3-in-1 Report Template -->
+    <template id="report_3_in_1_template">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <!-- Page 1: IPC Payment Certificate -->
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <t t-call="acme_project_approvals.ercs_ipc_document_content"/>
+                    </div>
+                </t>
+
+                <!-- Page 2: Summary Sheet -->
+                <div style="page-break-before: always;"/>
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <t t-call="acme_project_approvals.vsf_summary_document_content"/>
+                    </div>
+                </t>
+
+                <!-- Page 3: BOQ Measurement of Executed Work -->
+                <div style="page-break-before: always;"/>
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <t t-call="acme_project_approvals.ercs_boq_document_content"/>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <!-- Legacy / Existing Templates Preserved -->
     <template id="progress_certificate_document" inherit_id="acme_project_core.certificate_document">
         <xpath expr="//h2" position="after">
             <p t-if="o.acme_site">
@@ -57,6 +562,7 @@
             <p t-if="o.signed_takeoff"><strong>Signed takeoff attached</strong> <span t-field="o.signed_takeoff_filename"/></p>
         </xpath>
     </template>
+
     <template id="ipc_output_table">
         <t t-call="web.external_layout">
             <div class="page">
@@ -75,6 +581,7 @@
             </div>
         </t>
     </template>
+
     <template id="ipc_sheet_document">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="o">
@@ -91,68 +598,18 @@
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">acme_project_approvals.ipc_sheet_document</field>
     </record>
+
     <template id="ipc_detail_document">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="o">
-                <t t-set="output" t-value="o._acme_ipc_outputs()"/>
-                <t t-set="cover" t-value="output['cover']"/>
-                <t t-set="company" t-value="o.company_id"/>
                 <t t-call="web.external_layout">
                     <div class="page">
-                        <p><strong>Project Name</strong> <span t-out="cover[1][1]"/><br/>
-                            <strong>Project Location</strong> <span t-out="cover[5][1]"/><br/>
-                            <strong>Client</strong> <span t-out="cover[4][1]"/><br/>
-                            <strong>Contractor</strong> <span t-out="output.get('client_excel', {}).get('contractor', '')"/></p>
-                        <h2 class="text-center">Measurement of Executed Work · <span t-out="cover[0][1]"/></h2>
-                        <table class="table table-bordered table-sm" style="font-size: 8pt;">
-                            <thead style="display: table-header-group; background: #e7edf3;">
-                                <tr><th rowspan="2">Item No.</th><th rowspan="2" style="width: 26%;">Description</th>
-                                    <th rowspan="2">Unit</th><th colspan="5">Quantity</th>
-                                    <th colspan="6">Amount (<span t-out="cover[7][1]"/>)</th></tr>
-                                <tr><th>Contract</th><th>Previous</th><th>Current</th><th>To Date</th><th>Remaining</th>
-                                    <th>Unit Rate</th><th>Contract</th><th>Previous</th><th>Current</th><th>To Date</th><th>Remaining</th></tr>
-                            </thead>
-                            <tbody>
-                                <t t-foreach="output['summary']" t-as="section">
-                                    <tr style="background: #f2f5f3;"><th colspan="14" t-out="section[0]"/></tr>
-                                    <t t-foreach="output['detail']" t-as="line">
-                                        <tr t-if="line[0] == section[0]" style="page-break-inside: avoid;">
-                                            <td t-foreach="(1, 2, 3)" t-as="idx" t-out="line[idx]"/>
-                                            <td class="text-end" t-foreach="(5, 7, 9, 11, 13)" t-as="idx" t-out="line[idx]"/>
-                                            <td class="text-end" t-foreach="(4, 6, 8, 10, 12, 14)" t-as="idx">
-                                                <span t-out="line[idx]" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
-                                            </td>
-                                        </tr>
-                                    </t>
-                                    <tr><th colspan="9">Section Subtotal</th>
-                                        <th class="text-end" t-foreach="section[1:5] + [section[1] - section[4]]" t-as="amount">
-                                            <span t-out="amount" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
-                                        </th>
-                                    </tr>
-                                </t>
-                                <tr style="background: #f2f5f3;"><th colspan="9">Grand Total (Untaxed)</th>
-                                    <th class="text-end" t-foreach="(1, 2, 3, 4, 5)" t-as="column">
-                                        <span t-out="sum(section[column] if column &lt; 5 else section[1] - section[4] for section in output['summary'])"
-                                              t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
-                                    </th>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <t t-call="acme_project_approvals.ercs_boq_document_content"/>
                     </div>
                 </t>
             </t>
         </t>
     </template>
-    <record id="paperformat_ipc_detail" model="report.paperformat">
-        <field name="name">IPC Detailed BOQ</field>
-        <field name="format">A4</field>
-        <field name="orientation">Landscape</field>
-        <field name="margin_top">42</field>
-        <field name="margin_bottom">15</field>
-        <field name="margin_left">7</field>
-        <field name="margin_right">7</field>
-        <field name="header_spacing">24</field>
-    </record>
     <record id="report_ipc_detail" model="ir.actions.report">
         <field name="paperformat_id" ref="paperformat_ipc_detail"/>
         <field name="name">Detailed BOQ Sheet</field>
@@ -160,12 +617,14 @@
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">acme_project_approvals.ipc_detail_document</field>
     </record>
+
     <template id="ipc_summary_document">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="o">
-                <t t-call="acme_project_approvals.ipc_output_table">
-                    <t t-set="key" t-value="'summary'"/>
-                    <t t-set="title" t-value="'Summary Sheet'"/>
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <t t-call="acme_project_approvals.vsf_summary_document_content"/>
+                    </div>
                 </t>
             </t>
         </t>

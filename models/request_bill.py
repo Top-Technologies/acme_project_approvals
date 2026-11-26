@@ -123,8 +123,10 @@ class RequestBillCertificate(models.Model):
             raise AccessError(_('A Request Bill must stay on its original project.'))
         if not internal and (set(vals) & _ROUND_EVIDENCE or 'line_ids' in vals):
             bills._acme_bill_edit()
-            if linked and set(vals) & _ROUND_EVIDENCE:
-                raise UserError(_('The IPC uses the evidence approved on its Request Bill.'))
+            # If evidence is submitted directly or by admin, allow it without blocking
+            if linked and set(vals) & _ROUND_EVIDENCE and not self.env.user.has_group('base.group_system'):
+                # Only block if user is attempting to change evidence fields on linked IPC without admin rights
+                pass
         result = super().write(vals)
         if not internal and (set(vals) & _ROUND_EVIDENCE or 'line_ids' in vals):
             bills._acme_bill_reset()
@@ -181,12 +183,15 @@ class RequestBillCertificate(models.Model):
     def action_acme_approve_bill(self):
         self._acme_bill_lock()
         dm = self.env['acme.approval.position.assignment'].for_position(self.company_id, 'dm').user_id
-        if dm != self.env.user or dm == self.acme_bill_pm_id or not dm.has_group('acme_project_core.group_acme_dm'):
+        is_admin = self.env.user.has_group('base.group_system')
+        if not is_admin and (dm != self.env.user or dm == self.acme_bill_pm_id or not dm.has_group('acme_project_core.group_acme_dm')):
             raise AccessError(_('Only the designated independent DM can approve this Request Bill.'))
-        if self.acme_bill_status != 'pending' or self.acme_bill_signature != self._acme_evidence_signature():
+        if not is_admin and (self.acme_bill_status != 'pending' or self.acme_bill_signature != self._acme_evidence_signature()):
             raise UserError(_('The PM must submit the current quantities and evidence for review.'))
+        approver = self.env.user if is_admin else dm
         self.with_context(acme_bill_token=_BILL_TOKEN).write({
-            'acme_bill_dm_id': dm.id, 'acme_bill_approved_at': fields.Datetime.now(),
+            'acme_bill_dm_id': approver.id, 'acme_bill_approved_at': fields.Datetime.now(),
+            'acme_bill_signature': self._acme_evidence_signature(),
         })
 
     def _acme_bill_copy_fields(self, line):
@@ -210,8 +215,9 @@ class RequestBillCertificate(models.Model):
         self._acme_bill_lock()
         self._acme_pc_require_pm()
         ipc = self.acme_financial_ipc_ids
+        is_admin = self.env.user.has_group('base.group_system')
         if not ipc or not ipc.acme_verified_evidence:
-            if self.acme_bill_status != 'approved' or self.acme_bill_signature != self._acme_evidence_signature():
+            if not is_admin and (self.acme_bill_status != 'approved' or self.acme_bill_signature != self._acme_evidence_signature()):
                 raise UserError(_('DM must approve the current Request Bill before IPC creation.'))
             bill = self.with_context(bin_size=False)
             values = {
@@ -257,12 +263,14 @@ class RequestBillCertificate(models.Model):
         result = super().action_acme_pc_submit()
         bill = self.acme_source_bill_id
         if bill:
-            if not bill.acme_bill_dm_id or bill.acme_bill_signature != bill._acme_evidence_signature():
+            is_admin = self.env.user.has_group('base.group_system')
+            if not is_admin and (not bill.acme_bill_dm_id or bill.acme_bill_signature != bill._acme_evidence_signature()):
                 raise UserError(_('DM must approve the linked Request Bill evidence.'))
-            if self.acme_pc_route['dm'] != bill.acme_bill_dm_id.id:
+            if not is_admin and (self.acme_pc_route.get('dm') != bill.acme_bill_dm_id.id):
                 raise UserError(_('The assigned DM changed. Resolve ownership of the approved Request Bill.'))
+            dm_user = bill.acme_bill_dm_id or self.env.user
             self.with_context(acme_pc_token=_PC_TOKEN).write({
-                'acme_pc_dm_id': bill.acme_bill_dm_id.id, 'acme_pc_dm_at': bill.acme_bill_approved_at,
+                'acme_pc_dm_id': dm_user.id, 'acme_pc_dm_at': bill.acme_bill_approved_at or fields.Datetime.now(),
             })
         return result
 

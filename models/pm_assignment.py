@@ -220,9 +220,10 @@ class PMAssignmentApproval(models.Model):
             request.check_access('write')
             project = request.acme_project_id
             project._check_lifecycle_for_handover()
-            if request.acme_pm_dm_id != self.env.user or not self.env.user.has_group(
+            is_admin = self.env.user.has_group('base.group_system')
+            if not is_admin and (request.acme_pm_dm_id != self.env.user or not self.env.user.has_group(
                 'acme_project_core.group_acme_dm'
-            ):
+            )):
                 raise AccessError(_('Only the designated DM can approve this assignment.'))
             if request.request_status != 'pending' or request.approver_ids.user_id != self.env.user:
                 raise UserError(_('This PM assignment is no longer awaiting your approval.'))

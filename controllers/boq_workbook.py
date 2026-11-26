@@ -3,123 +3,174 @@ from textwrap import wrap
 
 
 def _description_height(description, width):
-    lines = sum(max(1, len(wrap(text, width))) for text in description.split('\n'))
-    return min(400, max(20, 15 * lines + 5))
+    lines = sum(max(1, len(wrap(text, width))) for text in str(description or '').split('\n'))
+    return min(400, max(22, 16 * lines + 6))
 
 
 def write_project_boq(book, project, lines):
-    _ = project.env._
+    """Generates the Measurement of Executed Work / Bill of Quantities export workbook
+
+    matching the client engineering format:
+    - Header: Project Name, Location, Consultant, Client, Contractor
+    - Title: Measurement of Executed Work
+    - Subtitle / Lot: Bill of quantities and Specification...
+    - Columns:
+      Item No | Description | Unit | Quantity (Contract, Executed) | Unit Price | Total Amount (Contract, Executed)
+    """
     currency = project.acme_contract_currency_id
-    round_amount = currency.round if currency else lambda amount: amount
-    originals = lines._acme_signed_boq_values(project)
-    ws = book.add_worksheet('Project BOQ')
-    ws.set_paper(9)
-    ws.set_landscape()
+    curr_name = currency.name if currency else 'ETB'
+    round_amount = currency.round if currency else lambda amount: round(amount, 2)
+
+    ws = book.add_worksheet('Measurement of Executed Work')
+    ws.set_paper(9)  # A4
     ws.fit_to_pages(1, 0)
-    ws.set_margins(.25, .25, .35, .35)
+    ws.set_margins(0.3, 0.3, 0.4, 0.4)
     ws.hide_gridlines(2)
     ws.set_footer('&RPage &P of &N')
-    widths = (8, 50, 9, 10, 10, 9, 12, 12, 14, 14, 12, 12, 14, 14, 10, 14)
+
+    # Column widths: Item No, Description, Unit, Qty Contract, Qty Executed, Unit Price, Total Contract, Total Executed
+    widths = [10, 52, 8, 12, 12, 14, 18, 18]
     for col, width in enumerate(widths):
         ws.set_column(col, col, width)
 
-    font = {'font_name': 'Times New Roman', 'font_size': 11, 'valign': 'top'}
-    border = dict(font, border=1)
-    title = book.add_format(dict(font, bold=True, font_size=15, align='center'))
-    metadata = book.add_format(dict(font, text_wrap=True))
-    heading = book.add_format(dict(border, bold=True, bg_color='#E7EBE9', align='center',
-                                   valign='vcenter', text_wrap=True))
-    section_style = book.add_format(dict(border, bold=True, bg_color='#F2F5F3'))
-    text = book.add_format(dict(border, text_wrap=True))
-    qty = book.add_format(dict(border, num_format='#,##0.############'))
-    signed = book.add_format(dict(border, num_format='+#,##0.############;"−"#,##0.############;0'))
-    signed_integer = book.add_format(dict(border, num_format='+#,##0;"−"#,##0;0'))
-    rate = book.add_format(dict(border, num_format='#,##0.00######'))
-    amount_style = {'num_format': '#,##0.' + '0' * (currency.decimal_places if currency else 2)}
-    if currency and not currency.decimal_places:
-        amount_style['num_format'] = '#,##0'
-    money = book.add_format(dict(border, **amount_style))
-    total_label = book.add_format(dict(border, bold=True, bg_color='#F2F5F3'))
-    total_money = book.add_format(dict(border, bold=True, bg_color='#F2F5F3', **amount_style))
+    # Styles
+    base_font = {'font_name': 'Calibri', 'font_size': 10, 'valign': 'vcenter'}
+    meta_label_style = dict(base_font, bold=True, font_size=11)
+    meta_value_style = dict(base_font, font_size=11)
 
-    address = project.partner_id
-    location = project.acme_site if 'acme_site' in project._fields else ''
-    for row, (label, value) in enumerate((
-        (_('Project Name'), project.display_name),
-        (_('Project Location'), location),
-        (_('Client'), address.display_name),
-        (_('Contractor'), project.company_id.name),
-        (_('Contract Reference'), project.acme_contract_reference),
-        (_('Project Code'), project.acme_project_sequence if 'acme_project_sequence' in project._fields else ''),
-        (_('Currency'), currency.name),
-    )):
-        ws.merge_range(row, 0, row, 2, label, metadata)
-        ws.merge_range(row, 3, row, 15, value or '', metadata)
-        ws.set_row(row, _description_height(value or '', 115))
-    ws.merge_range(7, 0, 7, 15, _('Bill of Quantities'), title)
-    ws.set_row(7, 25)
+    border_all = dict(base_font, border=1)
 
-    for col, caption in enumerate((_('Item No.'), _('Description'), _('Unit'))):
-        ws.merge_range(9, col, 10, col, caption, heading)
-    groups = (
-        (3, 5, _('Quantity'), [_('Original Qty'), _('Revised Qty'), _('Variation')]),
-        (6, 9, _('Contract Selling Value (Untaxed)'), [
-            _('Original Rate'), _('Revised Rate'), _('Original Amount'), _('Revised Amount')]),
-        (10, 13, _('Tender / Source BOQ Value (Untaxed)'), [
-            _('Original Rate'), _('Revised Rate'), _('Original Amount'), _('Revised Amount')]),
-        (14, 15, _('Verified Execution'), [_('Executed Qty'), _('Executed Amount')]),
-    )
-    for first, last, caption, labels in groups:
-        ws.merge_range(9, first, 9, last, caption, heading)
-        ws.write_row(10, first, labels, heading)
-    ws.set_row(9, 24)
-    ws.set_row(10, 30)
-    ws.repeat_rows(9, 10)
-    ws.freeze_panes(11, 3)
+    # Headers
+    title_format = book.add_format(dict(base_font, bold=True, font_size=14, align='center', valign='vcenter', underline=1))
+    lot_title_format = book.add_format(dict(base_font, bold=True, font_size=11, align='left', valign='vcenter'))
 
+    tbl_header = book.add_format(dict(border_all, bold=True, bg_color='#D9E1F2', align='center', valign='vcenter', text_wrap=True))
+    sec_header_1 = book.add_format(dict(border_all, bold=True, bg_color='#BDD7EE', align='left', valign='vcenter'))
+    sec_header_2 = book.add_format(dict(border_all, bold=True, bg_color='#F2F2F2', align='left', valign='vcenter'))
+
+    text_center = book.add_format(dict(border_all, align='center'))
+    text_left = book.add_format(dict(border_all, align='left', text_wrap=True))
+
+    qty_fmt = book.add_format(dict(border_all, align='right', num_format='#,##0.00'))
+    qty_int_fmt = book.add_format(dict(border_all, align='right', num_format='#,##0'))
+
+    dec = currency.decimal_places if currency else 2
+    rate_fmt = book.add_format(dict(border_all, align='right', num_format='#,##0.' + '0' * dec))
+    amt_fmt = book.add_format(dict(border_all, align='right', num_format='#,##0.' + '0' * dec))
+
+    total_label_fmt = book.add_format(dict(border_all, bold=True, bg_color='#D9E1F2', align='left'))
+    total_val_fmt = book.add_format(dict(border_all, bold=True, bg_color='#D9E1F2', align='right', num_format='#,##0.' + '0' * dec))
+
+    # 1. Metadata Header (Rows 1 to 6)
+    partner = project.partner_id
+    client_name = partner.display_name if partner else ''
+    contractor_name = project.company_id.name or 'Acme Engineering and Trading Plc'
+
+    metadata = [
+        ('Project Name:', project.display_name or ''),
+        ('Project Location:', getattr(project, 'acme_site', '') or getattr(project, 'acme_project_sequence', '') or ''),
+        ('Consultant:', getattr(project, 'acme_consultant', '') or 'ERCS'),
+        ('Client:', client_name),
+        ('Contractor:', contractor_name),
+    ]
+
+    for r_idx, (lbl, val) in enumerate(metadata):
+        ws.write(r_idx, 0, lbl, book.add_format(meta_label_style))
+        ws.merge_range(r_idx, 1, r_idx, 7, val, book.add_format(meta_value_style))
+        ws.set_row(r_idx, 20)
+
+    # 2. Sheet Title & Lot Title (Rows 7 to 9)
+    ws.merge_range('A8:H8', 'Measurement of Executed Work', title_format)
+    ws.set_row(7, 26)
+
+    lot_name = project.acme_contract_reference or ('BOQ for ' + (project.name or 'Project'))
+    ws.merge_range('A10:H10', f'Bill of quantities and Specification for {lot_name}', lot_title_format)
+    ws.set_row(9, 22)
+
+    # 3. Table Column Headers (Rows 11 and 12, 0-indexed: 10 and 11)
+    # Row 10 (top header)
+    ws.merge_range(11, 0, 12, 0, 'Item No', tbl_header)
+    ws.merge_range(11, 1, 12, 1, 'Description', tbl_header)
+    ws.merge_range(11, 2, 12, 2, 'Unit', tbl_header)
+    ws.merge_range(11, 3, 11, 4, 'Quantity', tbl_header)
+    ws.merge_range(11, 5, 12, 5, f'Unit Price\n({curr_name})', tbl_header)
+    ws.merge_range(11, 6, 11, 7, f'Total Amount\n({curr_name})', tbl_header)
+
+    # Row 11 (sub header for Quantity & Total Amount)
+    ws.write(12, 3, 'Contract', tbl_header)
+    ws.write(12, 4, 'Executed', tbl_header)
+    ws.write(12, 6, 'Contract', tbl_header)
+    ws.write(12, 7, 'Executed', tbl_header)
+
+    ws.set_row(11, 24)
+    ws.set_row(12, 24)
+    ws.repeat_rows(11, 12)
+    ws.freeze_panes(13, 0)
+
+    # Group lines by Bill No and Category
     sections = defaultdict(list)
     for line in lines:
-        sections[(line.bill_no, line.category)].append(line)
-    totals = dict.fromkeys((8, 9, 12, 13, 15), 0)
-    row = 11
+        bill = (line.bill_no or '').strip()
+        cat = (line.category or '').strip()
+        sections[(bill, cat)].append(line)
 
-    def write_total(row, caption, values):
-        ws.merge_range(row, 0, row, 7, caption, total_label)
-        for col in range(8, 16):
-            ws.write(row, col, values.get(col), total_money)
+    current_row = 13
+    total_contract_amt = 0.0
+    total_executed_amt = 0.0
 
-    for (bill, category), section_lines in sections.items():
-        caption = ' — '.join(filter(None, (bill, category))) or _('Unsectioned')
-        ws.merge_range(row, 0, row, 15, caption, section_style)
-        row += 1
-        subtotal = dict.fromkeys(totals, 0)
-        for item, line in enumerate(section_lines, 1):
-            original = originals.get(line.id, {})
-            original_qty = line.acme_original_quantity
-            old_rate = original.get('selling_rate', line.selling_rate)
-            old_source_rate = original.get('unit_rate', line.unit_rate)
-            values = {
-                8: round_amount(original_qty * old_rate),
-                9: round_amount(line.quantity * line.selling_rate),
-                12: round_amount(original_qty * old_source_rate),
-                13: round_amount(line.quantity * line.unit_rate),
-                15: line.acme_verified_executed_amount,
-            }
-            ws.write_row(row, 0, [line.reference or (f'{bill}.{item}' if bill else str(item)),
-                                  line.name, line.unit or ''], text)
-            ws.write_row(row, 3, [original_qty, line.quantity], qty)
-            delta = line._acme_quantity_delta()
-            ws.write_number(row, 5, delta, signed_integer if delta == int(delta) else signed)
-            ws.write_row(row, 6, [old_rate, line.selling_rate], rate)
-            ws.write_row(row, 10, [old_source_rate, line.unit_rate], rate)
-            ws.write_number(row, 14, line.acme_verified_executed_qty, qty)
-            for col, value in values.items():
-                ws.write_number(row, col, value, money)
-                subtotal[col] += value
-                totals[col] += value
-            ws.set_row(row, _description_height(line.name, 48))
-            row += 1
-        write_total(row, _('Section Subtotal'), subtotal)
-        row += 1
-    write_total(row, _('Grand Total (Untaxed)'), totals)
-    ws.print_area(0, 0, row, 15)
+    last_bill = None
+
+    for (bill, cat), section_lines in sections.items():
+        # Level 1 Section Header (e.g., "A Civil Works" or "B Solar and Pump Work")
+        if bill and bill != last_bill:
+            ws.write(current_row, 0, bill, sec_header_1)
+            ws.merge_range(current_row, 1, current_row, 7, bill, sec_header_1)
+            ws.set_row(current_row, 22)
+            current_row += 1
+            last_bill = bill
+
+        # Level 2 Section Header (e.g., "1 Earth Work" or Category)
+        if cat:
+            ws.write(current_row, 0, '', sec_header_2)
+            ws.merge_range(current_row, 1, current_row, 7, cat, sec_header_2)
+            ws.set_row(current_row, 20)
+            current_row += 1
+
+        # Section Item Lines
+        for idx, line in enumerate(section_lines, 1):
+            item_ref = line.reference or (f'{bill}.{idx}' if bill else str(idx))
+            desc = line.name or line.product_name or ''
+            uom = line.unit or ''
+
+            c_qty = line.quantity or line.acme_original_quantity or 0.0
+            e_qty = line.acme_verified_executed_qty or line.executed_quantity or 0.0
+
+            price = line.selling_rate or line.unit_rate or 0.0
+            c_amt = round_amount(c_qty * price)
+            e_amt = line.acme_verified_executed_amount or round_amount(e_qty * price)
+
+            total_contract_amt += c_amt
+            total_executed_amt += e_amt
+
+            q_fmt_c = qty_int_fmt if c_qty == int(c_qty) else qty_fmt
+            q_fmt_e = qty_int_fmt if e_qty == int(e_qty) else qty_fmt
+
+            ws.write(current_row, 0, item_ref, text_center)
+            ws.write(current_row, 1, desc, text_left)
+            ws.write(current_row, 2, uom, text_center)
+            ws.write_number(current_row, 3, c_qty, q_fmt_c)
+            ws.write_number(current_row, 4, e_qty, q_fmt_e)
+            ws.write_number(current_row, 5, price, rate_fmt)
+            ws.write_number(current_row, 6, c_amt, amt_fmt)
+            ws.write_number(current_row, 7, e_amt, amt_fmt)
+
+            ws.set_row(current_row, _description_height(desc, 50))
+            current_row += 1
+
+    # 4. Total Row at Bottom
+    ws.merge_range(current_row, 0, current_row, 5, f'Total Cost Material, Transportation, equipment and labor ({curr_name})', total_label_fmt)
+    ws.write_number(current_row, 6, round_amount(total_contract_amt), total_val_fmt)
+    ws.write_number(current_row, 7, round_amount(total_executed_amt), total_val_fmt)
+    ws.set_row(current_row, 26)
+
+    ws.print_area(0, 0, current_row, 7)

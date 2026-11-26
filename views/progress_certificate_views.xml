@@ -27,8 +27,14 @@
                 <button name="action_acme_pc_authorize" type="object" string="Authorize IPC"
                         groups="acme_project_core.group_acme_dgm,acme_project_core.group_acme_gm"
                         invisible="acme_certificate_type != 'progress' or state != 'draft' or not acme_pc_dm_id"/>
-                <button name="action_acme_export_ipc" type="object" string="Print / Export Excel" class="btn-primary"
+                <button name="action_acme_print_certificate" type="object" string="Print Certificate" class="btn-primary"
                         invisible="acme_certificate_type != 'progress' or state != 'certified'"/>
+                <button name="action_acme_print_3_in_1" type="object" string="Print 3-in-1" class="btn-secondary"
+                        invisible="acme_certificate_type != 'progress' or state != 'certified'"/>
+                <button name="action_acme_export_3_in_1_excel" type="object" string="Export 3-in-1 Excel" class="btn-secondary"
+                        invisible="acme_certificate_type != 'progress' or state != 'certified'"/>
+                <button name="action_acme_print_advance_requisition" type="object" string="Print Advance Requisition" class="btn-primary"
+                        invisible="acme_certificate_type != 'advance' or state != 'certified'"/>
                 <button name="action_acme_pc_reopen" type="object" string="Revise Before Posting"
                         invisible="acme_certificate_type != 'progress' or state != 'certified' or not acme_pc_invoice_ids"/>
                 <button name="action_acme_verify_ipc_evidence" type="object" string="Verify Take-off Evidence"
